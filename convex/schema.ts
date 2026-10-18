@@ -192,7 +192,7 @@ export default defineSchema({
   })
     .index("by_visibility", ["visibility"])
     .index("by_teacher", ["teacherId"]),
-  // Asistente de misiones (Anthropic): peticiones por docente (tope de gasto) y misiones verificadas que eligió.
+  // Asistente de misiones (Gemini o Anthropic): peticiones por docente (tope de gasto) y misiones verificadas que eligió.
   agentUsage: defineTable({
     teacherId: v.id("users"),
     createdAt: v.number(),

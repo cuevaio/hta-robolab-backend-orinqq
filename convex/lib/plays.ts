@@ -47,14 +47,14 @@ export type PlayInput = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** En una misión las pistas dependen del error de cada ejecución, así que no hay un tope de tres: solo uno que acote el dato. */
-const MISSION_HINTS_MAX = 100;
+export const MISSION_HINTS_MAX = 100;
 const clamp = (n: number, max: number) => Math.min(max, Math.max(0, Math.round(Number.isFinite(n) ? n : 0)));
 
 type Verified = { challengeId: string; play: PlayFacts };
 
 const NOT_FOUND = "Ese reto no existe.";
 
-function factsOf(input: PlayInput, solved: boolean, hintsMax: number): PlayFacts {
+export function factsOf(input: PlayInput, solved: boolean, hintsMax: number): PlayFacts {
   return { solved, runs: clamp(input.runs, 1000), hints: clamp(input.hints, hintsMax), ms: clamp(input.ms, DAY_MS) };
 }
 

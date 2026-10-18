@@ -4,9 +4,10 @@
  * ven. Los resultados salen de las partidas que el servidor verificó.
  */
 import { ConvexError, v } from "convex/values";
-import { catalog, catalogItem } from "../domain/classroom/catalog";
+import { catalog } from "../domain/classroom/catalog";
 import { type PlayRow, type StudentRef, summarizeChallenge } from "../domain/classroom/challengeStats";
 import { missionById } from "../domain/lab/mission";
+import { resolveItem, resolveOwnItem, agentMissionOf } from "./lib/items";
 import type { Doc, Id } from "./_generated/dataModel";
 import { type QueryCtx, mutation, query } from "./_generated/server";
 import { classroomLabel, requireOwnClassroom, requireTeacher } from "./lib/access";
@@ -20,8 +21,8 @@ async function requireOwnAssignment(ctx: QueryCtx, teacherId: Id<"users">, assig
   return assignment;
 }
 
-function requireCatalogItem(challengeId: string) {
-  const item = catalogItem(challengeId);
+async function requireCatalogItem(ctx: QueryCtx, challengeId: string, teacherId?: Id<"users">) {
+  const item = teacherId ? await resolveOwnItem(ctx, teacherId, challengeId) : await resolveItem(ctx, challengeId);
   if (!item) throw new ConvexError("Ese reto no existe.");
   return item;
 }
@@ -43,7 +44,7 @@ export const create = mutation({
   args: { challengeId: v.string(), visibility, classroomId: v.optional(v.id("classrooms")) },
   handler: async (ctx, args): Promise<Id<"assignments">> => {
     const teacherId = await requireTeacher(ctx);
-    const item = requireCatalogItem(args.challengeId);
+    const item = await requireCatalogItem(ctx, args.challengeId, teacherId);
     if (args.classroomId) {
       await requireOwnClassroom(ctx, teacherId, args.classroomId);
       await requireNotAssigned(ctx, args.classroomId, item.challengeId);
@@ -97,12 +98,15 @@ export const get = query({
   handler: async (ctx, { assignmentId }) => {
     const teacherId = await requireTeacher(ctx);
     const assignment = await requireOwnAssignment(ctx, teacherId, assignmentId);
-    const item = requireCatalogItem(assignment.challengeId);
+    const item = await requireCatalogItem(ctx, assignment.challengeId);
+    const agent = await agentMissionOf(ctx, assignment.challengeId);
     const classroom = assignment.classroomId ? await ctx.db.get(assignment.classroomId) : null;
     return {
       assignmentId,
       ...item,
       mission: missionById(item.challengeId) ?? null,
+      /** El tablero de una misión del asistente (formato Mission v1), para que el docente la pruebe. */
+      agentMission: agent?.mission ?? null,
       visibility: assignment.visibility,
       classroomId: assignment.classroomId ?? null,
       classroomLabel: classroom ? classroomLabel(classroom) : null,
@@ -119,25 +123,25 @@ export const listForClassroom = query({
     await requireOwnClassroom(ctx, teacherId, classroomId);
     const students = await studentRefs(ctx, classroomId);
     const plays = await classPlays(ctx, classroomId);
-    return (await assignmentsOf(ctx, classroomId)).flatMap((a) => {
-      const item = catalogItem(a.challengeId);
-      if (!item) return [];
+    const rows = [];
+    for (const a of await assignmentsOf(ctx, classroomId)) {
+      const item = await resolveItem(ctx, a.challengeId);
+      if (!item) continue;
       const summary = summarizeChallenge(students, plays, a.challengeId);
-      return [
-        {
-          assignmentId: a._id,
-          challengeId: a.challengeId,
-          title: item.title,
-          topic: item.topic,
-          level: item.level,
-          kind: item.kind,
-          visibility: a.visibility,
-          solvedPercent: summary.solvedPercent,
-          studentsSolved: summary.studentsSolved,
-          studentCount: summary.studentCount,
-        },
-      ];
-    });
+      rows.push({
+        assignmentId: a._id,
+        challengeId: a.challengeId,
+        title: item.title,
+        topic: item.topic,
+        level: item.level,
+        kind: item.kind,
+        visibility: a.visibility,
+        solvedPercent: summary.solvedPercent,
+        studentsSolved: summary.studentsSolved,
+        studentCount: summary.studentCount,
+      });
+    }
+    return rows;
   },
 });
 
@@ -149,7 +153,7 @@ export const results = query({
     const assignment = await requireOwnAssignment(ctx, teacherId, assignmentId);
     if (!assignment.classroomId) throw new ConvexError("Ese reto no está asignado a una clase.");
     const classroom = await requireOwnClassroom(ctx, teacherId, assignment.classroomId);
-    const item = requireCatalogItem(assignment.challengeId);
+    const item = await requireCatalogItem(ctx, assignment.challengeId);
     const students = await studentRefs(ctx, classroom._id);
     const summary = summarizeChallenge(students, await classPlays(ctx, classroom._id), assignment.challengeId);
     return {
@@ -224,7 +228,7 @@ export const listMine = query({
 
     const rows = [];
     for (const a of mine) {
-      const item = catalogItem(a.challengeId);
+      const item = await resolveItem(ctx, a.challengeId);
       if (!item) continue;
       const facts = a.classroomId ? await factsOf(a.classroomId) : null;
       const summary = facts ? summarizeChallenge(facts.students, facts.plays, a.challengeId) : null;

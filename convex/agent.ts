@@ -1,5 +1,5 @@
 /**
- * Asistente para proponer misiones (Anthropic). El docente describe el aprendizaje;
+ * Asistente para proponer misiones (Gemini o Anthropic). El docente describe el aprendizaje;
  * el servidor le pide propuestas al modelo, las valida y las resuelve (nada llega
  * sin pasar por `validate_mission`), y solo se ofrecen las que pasan. Guardar vuelve
  * a validar. El navegador nunca ve la clave ni habla con el proveedor.
@@ -134,6 +134,16 @@ export const save = mutation({
       metrics: evaluate_difficulty(mission),
       createdAt: Date.now(),
     });
+  },
+});
+
+/** Una misión guardada del docente (para probarla); la de otro docente no existe. */
+export const get = query({
+  args: { id: v.id("agentMissions") },
+  handler: async (ctx, { id }) => {
+    const teacherId = await requireTeacher(ctx);
+    const doc = await ctx.db.get(id);
+    return doc && doc.teacherId === teacherId ? doc : null;
   },
 });
 
