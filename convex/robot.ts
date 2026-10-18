@@ -16,7 +16,7 @@
  * - Idempotencia: el mismo id de envío nunca se ejecuta dos veces.
  *
  * Registrar un robot (una vez, desde la consola del equipo):
- *   npx convex run robot:register '{"name":"Wayra"}'
+ *   npx convex run robot:register '{"name":"Robi"}'
  * Devuelve el código (para la web) y la clave (solo para el firmware).
  */
 import { ConvexError, v } from "convex/values";

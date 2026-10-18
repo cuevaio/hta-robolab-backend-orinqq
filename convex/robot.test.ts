@@ -16,7 +16,7 @@ afterEach(() => {
 
 async function withRobot() {
   const t = convexTest(schema, modules);
-  const robot = await t.mutation(internal.robot.register, { name: "Wayra" });
+  const robot = await t.mutation(internal.robot.register, { name: "Robi" });
   const headers = { "X-Clave": robot.key };
   const next = (query = "") => t.fetch(`/robot/siguiente${query}`, { headers });
   const reply = (body: string) => t.fetch("/robot/estado", { method: "POST", headers, body });
@@ -35,7 +35,7 @@ describe("robot por wifi: lo que pide el contrato", () => {
     const { t, robot } = await withRobot();
     const list = await t.query(internal.robot.list, {});
     expect(list).toEqual([
-      expect.objectContaining({ name: "Wayra", code: robot.code, vigente: true, conectado: false }),
+      expect.objectContaining({ name: "Robi", code: robot.code, vigente: true, conectado: false }),
     ]);
     expect(JSON.stringify(list)).not.toContain(robot.key);
     expect(list[0]!.venceEn).toMatch(/^1[12] h/);
@@ -44,17 +44,17 @@ describe("robot por wifi: lo que pide el contrato", () => {
   it("el equipo puede renombrar un robot desde la consola sin cambiar su clave ni su código", async () => {
     const t = convexTest(schema, modules);
     const robot = await t.mutation(internal.robot.register, { name: "Kusi" });
-    expect(await t.mutation(internal.robot.rename, { from: "Kusi", to: " Wayra " })).toEqual({ renamed: 1 });
-    expect(await t.query(internal.robot.list, {})).toEqual([expect.objectContaining({ name: "Wayra", code: robot.code })]);
+    expect(await t.mutation(internal.robot.rename, { from: "Kusi", to: " Robi " })).toEqual({ renamed: 1 });
+    expect(await t.query(internal.robot.list, {})).toEqual([expect.objectContaining({ name: "Robi", code: robot.code })]);
     expect((await t.fetch("/robot/siguiente", { headers: { "X-Clave": robot.key } })).status).toBe(204); // la misma clave sigue entrando
-    expect(await t.mutation(internal.robot.rename, { from: "Nadie", to: "Wayra" })).toEqual({ renamed: 0 });
-    await expect(t.mutation(internal.robot.rename, { from: "Wayra", to: "   " })).rejects.toThrow(/nombre/);
+    expect(await t.mutation(internal.robot.rename, { from: "Nadie", to: "Robi" })).toEqual({ renamed: 0 });
+    await expect(t.mutation(internal.robot.rename, { from: "Robi", to: "   " })).rejects.toThrow(/nombre/);
   });
 
   it("el robot recibe AADZAA sin espacios ni saltos, y la web ve OK, RUN y DONE", async () => {
     const { t, robot, next, reply, status } = await withRobot();
     const sent = await t.mutation(api.robot.send, { code: robot.code.toLowerCase(), program: PROGRAM, requestId: "envio-1" });
-    expect(sent).toMatchObject({ letters: "AADZAA", robotName: "Wayra", duplicate: false });
+    expect(sent).toMatchObject({ letters: "AADZAA", robotName: "Robi", duplicate: false });
 
     const res = await next();
     expect(res.status).toBe(200);
@@ -181,7 +181,7 @@ describe("robot por wifi: rutas para otras webs", () => {
     await next();
     await reply("OK");
     const state = await t.fetch(`/robot/web/estado?codigo=${robot.code}&id=web-1`, { headers: { Origin: origin } });
-    expect(await state.json()).toMatchObject({ estado: "OK", conectado: true, secuencia: "AADZAA", robot: "Wayra" });
+    expect(await state.json()).toMatchObject({ estado: "OK", conectado: true, secuencia: "AADZAA", robot: "Robi" });
   });
 
   it("responde la verificación previa de CORS solo a orígenes permitidos", async () => {

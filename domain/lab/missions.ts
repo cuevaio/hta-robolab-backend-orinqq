@@ -109,7 +109,7 @@ const SPECS: readonly Spec[] = [
     title: "Camino de las hormigas",
     topic: "ciencia",
     emoji: "🐜",
-    story: "Wayra observa a las hormigas con su lupa: visita el hormiguero (A), la zona de comida (B) y anota todo en su cuaderno, en la meta.",
+    story: "Robi observa a las hormigas con su lupa: visita el hormiguero (A), la zona de comida (B) y anota todo en su cuaderno, en la meta.",
     board: ["...#..", "A.~#~.", "S..#..", ".#...G", ".#~#..", "B..#.."],
     budgets: [20, 21, 16],
     hints: [
@@ -123,7 +123,7 @@ const SPECS: readonly Spec[] = [
     title: "Colección de rocas",
     topic: "ciencia",
     emoji: "🪨",
-    story: "Wayra junta rocas para clasificarlas: una roca lisa en A y una con cristales en B. Luego las deja en la mesa de clasificación, en la meta.",
+    story: "Robi junta rocas para clasificarlas: una roca lisa en A y una con cristales en B. Luego las deja en la mesa de clasificación, en la meta.",
     board: ["..~G..", ".#.#.A", ".#..~.", "B..#..", ".#~#.#", "..S..."],
     budgets: [22, 23, 18],
     hints: [
@@ -137,7 +137,7 @@ const SPECS: readonly Spec[] = [
     title: "Noche de telescopio",
     topic: "ciencia",
     emoji: "🔭",
-    story: "Es de noche y Wayra quiere ver las estrellas. Recoge el mapa del cielo en A, el telescopio en B y llega a la cabina de observación, en la meta.",
+    story: "Es de noche y Robi quiere ver las estrellas. Recoge el mapa del cielo en A, el telescopio en B y llega a la cabina de observación, en la meta.",
     board: ["....~S", ".##...", "A#..#.", "...~#B", "##....", "G..#~."],
     budgets: [22, 25, 20],
     hints: [
@@ -151,7 +151,7 @@ const SPECS: readonly Spec[] = [
     title: "Gotas de lluvia",
     topic: "ciencia",
     emoji: "🌧️",
-    story: "Llovió toda la noche. Wayra recoge el agua de dos pluviómetros (A y B) y la lleva al laboratorio, en la meta. El barro amarillo gasta más energía.",
+    story: "Llovió toda la noche. Robi recoge el agua de dos pluviómetros (A y B) y la lleva al laboratorio, en la meta. El barro amarillo gasta más energía.",
     board: ["..#..G", ".~#.~.", "B...#.", "##.~..", "...#.A", "S....."],
     budgets: [22, 27, 22],
     hints: [
@@ -165,7 +165,7 @@ const SPECS: readonly Spec[] = [
     title: "Imanes y clips",
     topic: "ciencia",
     emoji: "🧲",
-    story: "Wayra prueba su imán: busca clips en A y tornillos en B y lleva todo a la mesa del experimento, en la meta.",
+    story: "Robi prueba su imán: busca clips en A y tornillos en B y lleva todo a la mesa del experimento, en la meta.",
     board: [".A#...", ".##.#.", "..~.#.", "S#..~G", ".#.#..", "...#B."],
     budgets: [27, 28, 23],
     hints: [
@@ -179,7 +179,7 @@ const SPECS: readonly Spec[] = [
     title: "Esquiva el charco",
     topic: "tecnologia",
     emoji: "💧",
-    story: "Wayra quiere llegar a la meta sin cruzar el charco: el agua es terreno amarillo y gasta el triple. Recoge la caja de herramientas en A y el casco en B.",
+    story: "Robi quiere llegar a la meta sin cruzar el charco: el agua es terreno amarillo y gasta el triple. Recoge la caja de herramientas en A y el casco en B.",
     board: ["..##.#", ".A....", "..~~~.", "S.~~~G", "..~~~.", ".#..B."],
     budgets: [21, 22, 17],
     hints: [
@@ -193,7 +193,7 @@ const SPECS: readonly Spec[] = [
     title: "Energía justa",
     topic: "tecnologia",
     emoji: "🧩",
-    story: "Wayra sube por un camino con paredes. Pasa por A y por B y llega a la meta sin dar pasos de más: cada uno gasta energía.",
+    story: "Robi sube por un camino con paredes. Pasa por A y por B y llega a la meta sin dar pasos de más: cada uno gasta energía.",
     board: ["...#.G", ".#.~A.", ".#..#.", "B..~#.", "##.#..", "S....."],
     budgets: [24, 23, 18],
     hints: [
@@ -207,7 +207,7 @@ const SPECS: readonly Spec[] = [
     title: "Camino cerrado",
     topic: "tecnologia",
     emoji: "🚧",
-    story: "Un muro cierra el camino de Wayra. Busca el paso, recoge el cable en A y la batería en B y llega a la meta.",
+    story: "Un muro cierra el camino de Robi. Busca el paso, recoge el cable en A y la batería en B y llega a la meta.",
     board: ["...#..", ".A.#..", "...#.B", "S..#.G", ".~....", "..~#.."],
     budgets: [21, 20, 15],
     hints: [
@@ -221,7 +221,7 @@ const SPECS: readonly Spec[] = [
     title: "Pan para los vecinos",
     topic: "tecnologia",
     emoji: "🚩",
-    story: "Wayra lleva pan a dos vecinos: uno vive en A y el otro en B. Después de repartirlo, llega a la meta.",
+    story: "Robi lleva pan a dos vecinos: uno vive en A y el otro en B. Después de repartirlo, llega a la meta.",
     board: ["......", ".####.", "A..~#B", "##..#.", "...#..", "S#...G"],
     budgets: [25, 26, 21],
     hints: [
@@ -235,7 +235,7 @@ const SPECS: readonly Spec[] = [
     title: "Camino a casa",
     topic: "tecnologia",
     emoji: "🏠",
-    story: "Wayra termina de jugar y vuelve a casa. Antes pasa por la tienda (A) y por la panadería (B) y cuida la energía de su batería.",
+    story: "Robi termina de jugar y vuelve a casa. Antes pasa por la tienda (A) y por la panadería (B) y cuida la energía de su batería.",
     board: ["..#...", "G.#.~A", ".~..#.", "##.#..", "B..~..", "..#..S"],
     budgets: [27, 30, 25],
     hints: [
@@ -249,7 +249,7 @@ const SPECS: readonly Spec[] = [
     title: "Túnel de la mina",
     topic: "ingenieria",
     emoji: "⛏️",
-    story: "Wayra recorre los túneles de una mina: recoge el casco en A y la linterna en B, y sale por la puerta, en la meta.",
+    story: "Robi recorre los túneles de una mina: recoge el casco en A y la linterna en B, y sale por la puerta, en la meta.",
     board: ["##...#", "...#~.", "S#.B#.", "......", "A#~##G", "......"],
     budgets: [21, 18, 13],
     hints: [
@@ -263,7 +263,7 @@ const SPECS: readonly Spec[] = [
     title: "Puente de tablones",
     topic: "ingenieria",
     emoji: "🌉",
-    story: "Wayra construye un puente sobre el río: recoge los tablones en A, cruza por el puente de madera (terreno amarillo) y trae la cuerda de B hasta la meta.",
+    story: "Robi construye un puente sobre el río: recoge los tablones en A, cruza por el puente de madera (terreno amarillo) y trae la cuerda de B hasta la meta.",
     board: ["..S...", ".A..~.", "###~##", "......", ".~B.#.", ".....G"],
     budgets: [24, 21, 16],
     hints: [
@@ -277,7 +277,7 @@ const SPECS: readonly Spec[] = [
     title: "Torre de ladrillos",
     topic: "ingenieria",
     emoji: "🧱",
-    story: "Para levantar la torre, Wayra recoge ladrillos en A y en B y los lleva hasta la cima, en la meta.",
+    story: "Para levantar la torre, Robi recoge ladrillos en A y en B y los lleva hasta la cima, en la meta.",
     board: ["G..#..", ".#.#.B", ".#~...", "A##~#.", "....#.", ".##..S"],
     budgets: [22, 25, 20],
     hints: [
@@ -305,7 +305,7 @@ const SPECS: readonly Spec[] = [
     title: "Concierto en el patio",
     topic: "artes",
     emoji: "🎵",
-    story: "Wayra organiza un concierto en el patio: recoge los tambores en B y el micrófono en A y llega al escenario, en la meta.",
+    story: "Robi organiza un concierto en el patio: recoge los tambores en B y el micrófono en A y llega al escenario, en la meta.",
     board: ["..~...", ".##.#A", "....~.", "S#.#.G", "B..~#.", "..#..."],
     budgets: [23, 20, 15],
     hints: [
@@ -319,7 +319,7 @@ const SPECS: readonly Spec[] = [
     title: "Escultura de arcilla",
     topic: "artes",
     emoji: "🏺",
-    story: "Wayra prepara su escultura: busca la arcilla en A y los moldes en B y llega al taller de cerámica, en la meta.",
+    story: "Robi prepara su escultura: busca la arcilla en A y los moldes en B y llega al taller de cerámica, en la meta.",
     board: ["..S...", ".#.~#A", ".#....", "B..#.#", ".~##..", "...G.."],
     budgets: [22, 23, 18],
     hints: [
@@ -333,7 +333,7 @@ const SPECS: readonly Spec[] = [
     title: "Teatro de títeres",
     topic: "artes",
     emoji: "🎭",
-    story: "Wayra prepara una función de títeres: busca los muñecos en A y el telón en B y llega al teatro, en la meta.",
+    story: "Robi prepara una función de títeres: busca los muñecos en A y el telón en B y llega al teatro, en la meta.",
     board: ["S..~..", "##.##.", "....~.", ".##.#B", "A.~...", "...#.G"],
     budgets: [24, 25, 20],
     hints: [
@@ -347,7 +347,7 @@ const SPECS: readonly Spec[] = [
     title: "La balanza",
     topic: "matematicas",
     emoji: "⚖️",
-    story: "Wayra pesa dos cajas en una balanza (A y B) y lleva el resultado a la meta. Suma la energía de tu ruta antes de ejecutar.",
+    story: "Robi pesa dos cajas en una balanza (A y B) y lleva el resultado a la meta. Suma la energía de tu ruta antes de ejecutar.",
     board: ["...#.G", ".#.#~.", ".#....", "..A##B", "#..~..", "S..#.."],
     budgets: [22, 19, 14],
     hints: [
@@ -361,7 +361,7 @@ const SPECS: readonly Spec[] = [
     title: "Compras del mercado",
     topic: "matematicas",
     emoji: "🛒",
-    story: "Wayra compra frutas en A y verduras en B y paga en la caja, en la meta. Haz las cuentas de energía antes de ejecutar.",
+    story: "Robi compra frutas en A y verduras en B y paga en la caja, en la meta. Haz las cuentas de energía antes de ejecutar.",
     board: ["......", ".#~#.A", "S...#.", ".#.~..", "B..##G", ".....#"],
     budgets: [23, 22, 17],
     hints: [
@@ -389,7 +389,7 @@ const SPECS: readonly Spec[] = [
     title: "Reparto de manzanas",
     topic: "matematicas",
     emoji: "🍎",
-    story: "Wayra reparte manzanas en dos casas, A y B. ¿Cuánta energía necesita para repartirlas y llegar a la meta? Suma los pasos.",
+    story: "Robi reparte manzanas en dos casas, A y B. ¿Cuánta energía necesita para repartirlas y llegar a la meta? Suma los pasos.",
     board: ["S..#..", ".#.#~.", ".....A", "#.#~#.", "B.....", "..#..G"],
     budgets: [22, 23, 18],
     hints: [
