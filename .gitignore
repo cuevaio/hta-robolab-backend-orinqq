@@ -8,3 +8,4 @@ coverage/
 .convex/
 .claude/
 firmware/**/secretos.h
+__pycache__/

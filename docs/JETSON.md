@@ -1,115 +1,103 @@
-# Generar misiones con una Jetson por USB
+# Generar con la Jetson por USB serial
 
-RoboLab puede generar con **Qwen 2.5 3B Instruct Q4_K_M** en una Jetson Orin Nano de 8 GB. La nube sigue disponible como opción independiente. No hay cambio automático de local a nube: si la Jetson falla, se informa al docente.
+RoboLab usa **Qwen 2.5 3B Instruct Q4_K_M** en la Jetson Orin Nano de 8 GB. El docente conecta el cable, pulsa **Conectar Jetson**, elige el dispositivo y pide misiones. La computadora puede tener otra Wi-Fi: la generación viaja por el puerto serie virtual del USB, sin IP, SSH, Node ni acompañante instalado en esa computadora.
 
-La inferencia se hace en la Jetson. La sesión, la certificación de solvencia, el guardado y la asignación continúan en Convex y necesitan internet. Esto no convierte toda la plataforma en una aplicación sin conexión.
+La sesión, la revisión, el guardado y la asignación siguen en Convex y necesitan internet en la computadora. No hay cambio automático de Jetson a cloud. Una respuesta local es un borrador: `agent.reviewLocal` la certifica antes de mostrarla y `agent.save` vuelve a validarla.
 
-## Recorrido
+## En cualquier computadora
 
-Web → conector local de la laptop (`127.0.0.1:8765`) → túnel SSH sobre la red USB (`127.0.0.1:11435`) → Ollama en la Jetson (`127.0.0.1:11434`). La propuesta vuelve a la web y pasa por `agent.reviewLocal` en Convex antes de mostrarse; `agent.save` vuelve a validarla al guardar.
+1. Alimenta la Jetson con su fuente DC y arráncala normalmente, sin Recovery. El modelo y el servicio ya deben estar instalados en ella.
+2. Conecta su USB-C con un cable de datos a la computadora.
+3. Abre RoboLab por HTTPS (o localhost para desarrollo) en un navegador de escritorio con Web Serial. Chrome y Edge de escritorio son los navegadores previstos; la web detecta si la API no existe.
+4. En «Nuevo reto → Crear con el asistente → Jetson por USB», pulsa **Conectar Jetson** y elige su puerto. En Windows aparece como un puerto COM USB. La web verifica que responde el servicio `robolab-jetson`, versión 1, antes de permitir generar.
+5. Describe el aprendizaje y genera. La primera carga puede tardar más. Si retiras el cable, el aprendizaje se conserva y debes volver a elegir el dispositivo.
 
-Convex cloud no puede acceder a `192.168.55.1` ni al localhost de la laptop. No configures esa dirección como proveedor del despliegue cloud.
+No hace falta que la Jetson y la computadora compartan Wi-Fi. Windows debe reconocer el dispositivo USB CDC ACM con su controlador; si el puerto no aparece, revisa el Administrador de dispositivos y el cable. La prueba física en Windows sigue pendiente; las pruebas del transporte usan streams reales y el servicio se comprueba con el USB real de una laptop Linux.
 
-## Jetson (una vez)
+Fuentes de plataforma: [Web Serial de Chrome](https://developer.chrome.com/docs/capabilities/serial), [USB de Orin Nano](https://docs.nvidia.com/jetson/orin-nano-devkit/user-guide/latest/hardware_layout.html), [controlador USB serial de Windows](https://learn.microsoft.com/en-us/windows-hardware/drivers/usbcon/usb-driver-installation-based-on-compatible-ids).
 
-Con alimentación DC y Ubuntu iniciado normalmente, sin el puente de Recovery:
+## Instalación en la Jetson (una vez)
 
-1. Comprueba `ssh jetson-usb`. Ese alias debe apuntar al usuario de tu Jetson y a `192.168.55.1`, con su clave y huella verificadas. El USB-C debe ser un cable de datos y la laptop debe tener su interfaz de red USB funcionando.
-2. Instala Ollama con el [instalador oficial](https://docs.ollama.com/linux). Para ARM64 se necesita el paquete correspondiente; no instales drivers de PC sobre Jetson.
-3. Mantén el servicio en loopback y desactiva cloud. En `/etc/systemd/system/ollama.service.d/robolab.conf`:
-
-```ini
-[Service]
-Environment=OLLAMA_HOST=127.0.0.1:11434
-Environment=OLLAMA_NO_CLOUD=1
-Environment=OLLAMA_NUM_PARALLEL=1
-Environment=OLLAMA_MAX_LOADED_MODELS=1
-Environment=OLLAMA_CONTEXT_LENGTH=8192
-```
+Se realiza mediante acceso de mantenimiento SSH; las computadoras que después usen RoboLab no necesitan ese acceso. Requiere Ubuntu iniciado, Node >=22.12, Python 3 de Ubuntu, Ollama y el modelo descargado. No instales drivers CUDA de PC sobre Jetson. En esta placa se verificó Ollama 0.40.6 ARM64 con CUDA 13 de L4T R39, contexto 8192 y 100 % GPU.
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now ollama
-sudo systemctl restart ollama
 ollama pull qwen2.5:3b-instruct-q4_K_M
-ollama run qwen2.5:3b-instruct-q4_K_M 'Responde en español: listo'
 ollama ps
 ```
 
-La descarga inicial necesita internet. Después el modelo puede inferir sin internet. `ollama ps` debe confirmar uso de GPU; detectar la placa con `nvidia-smi` por sí solo no demuestra que el modelo use la GPU. En L4T R39 se verificó Ollama 0.40.6 con su biblioteca CUDA 13; el instalador puede avisar que no reconoce JetPack aunque el runtime detecte Orin. Comprueba siempre la inferencia real.
+Ollama debe escuchar únicamente en `127.0.0.1:11434`, con `OLLAMA_NO_CLOUD=1`, `OLLAMA_NUM_PARALLEL=1`, `OLLAMA_MAX_LOADED_MODELS=1` y `OLLAMA_CONTEXT_LENGTH=8192`. La descarga inicial necesita internet; la inferencia posterior no.
 
-## Laptop
+Instala este repositorio en `/opt/robolab/backend` y ejecuta `npm ci` allí, incluyendo las dependencias de desarrollo porque `tsx` ejecuta el servicio TypeScript. Mientras este cambio esté en revisión, usa la rama `codex/jetson-local-generation` en ambos repositorios. La unidad usa el usuario `jetson` y el grupo `dialout`; ajusta el usuario si tu instalación es diferente.
 
-Requiere Node >=22.12, SSH y este repositorio:
-
-```bash
-npm ci
-# Deja esta terminal abierta; toda la inferencia pasa por el cable USB.
-ssh -NT -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
-  -L 127.0.0.1:11435:127.0.0.1:11434 jetson-usb
-```
-
-En otra terminal:
+El puerto `/dev/ttyGS0` tiene una consola de login de fábrica. **Guarda su estado antes de dedicarlo a generación.** Conecta sin generaciones pendientes, conserva el acceso SSH y ejecuta en la Jetson:
 
 ```bash
-npm run agent:local
+sudo install -d -m 700 /var/backups/robolab-usb
+systemctl is-enabled serial-getty@ttyGS0.service | sudo tee /var/backups/robolab-usb/serial-getty-enabled.txt
+sudo systemctl cat serial-getty@ttyGS0.service | sudo tee /var/backups/robolab-usb/serial-getty.service
+cd /opt/robolab/backend
+sudo install -m 644 ops/jetson/99-robolab-usb.rules /etc/udev/rules.d/99-robolab-usb.rules
+sudo install -m 644 ops/jetson/robolab-usb.service /etc/systemd/system/robolab-usb.service
+sudo systemctl disable --now serial-getty@ttyGS0.service
+sudo systemctl mask serial-getty@ttyGS0.service
+sudo udevadm control --reload-rules
+sudo udevadm trigger --action=change --subsystem-match=tty --sysname-match=ttyGS0
+sudo systemctl daemon-reload
+sudo systemctl enable --now robolab-usb
 ```
 
-Abre «Nuevo reto → Crear con el asistente → Jetson por USB». El navegador puede pedir acceso a la red local: permítelo para conectar con el acompañante de esta laptop.
+El lanzador stdlib `open_usb.py` configura el puerto en modo raw, sin eco de consola, y ejecuta `scripts/agent-usb.ts`. Su servicio corre sin root y el permiso del puerto se limita a `dialout`. La generación usa el orquestador compartido y Ollama loopback directamente en la Jetson. No se reciben rutas, URLs ni comandos de shell por USB. La unidad se reinicia si el proceso termina; al abrir el puerto la web verifica nuevamente la identidad del servicio.
 
-Se permiten por defecto `http://localhost:5173`, `http://localhost:5175`, `https://robolab-web.vercel.app` y `https://robolab-web-omega.vercel.app`. Para otro dominio o una preview Vercel, configura su origen exacto **al iniciar el conector**:
+Para restaurar la consola USB original, usando SSH:
 
 ```bash
-AGENT_LOCAL_ORIGINS=https://tu-preview.vercel.app,http://localhost:5175 npm run agent:local
+sudo systemctl disable --now robolab-usb
+sudo systemctl unmask serial-getty@ttyGS0.service
+sudo systemctl enable --now serial-getty@ttyGS0.service
 ```
 
-No uses comodines. El conector escucha solo en `127.0.0.1`; comprueba Host, Origin y JSON, limita cuerpos y rechaza solicitudes concurrentes. No lleva claves de Convex ni del proveedor cloud. `OLLAMA_URL` puede seleccionar otro puerto loopback del túnel; `OLLAMA_MODEL` otro modelo ya descargado. No acepta URLs del navegador.
+Esta receta restaura el estado `enabled` de la placa donde se instaló; si tu copia de seguridad indica otro estado, restáuralo. No se cambian el firmware, el SSD, el gadget USB ni la red de mantenimiento.
 
-## Comprobar y diagnosticar
+## Preparar Qwen al arrancar
+
+`ollama.service` mantiene la API del modelo. `robolab-qwen.service` carga el modelo ya instalado y comprueba que esté completamente en GPU. Desde el repositorio instalado:
 
 ```bash
-curl -H 'Origin: http://localhost:5175' http://127.0.0.1:8765/health
-ssh jetson-usb 'ollama list; ollama ps; systemctl is-active ollama'
-ssh jetson-usb 'sudo journalctl -u ollama -n 40 --no-pager'
+sudo install -d -m 755 /usr/local/lib/robolab /etc/systemd/system/ollama.service.d
+sudo install -m 644 ops/jetson/prepare_model.py /usr/local/lib/robolab/prepare_model.py
+sudo install -m 644 ops/jetson/ollama-robolab.conf /etc/systemd/system/ollama.service.d/robolab.conf
+sudo install -m 644 ops/jetson/robolab-qwen.service /etc/systemd/system/robolab-qwen.service
+sudo systemctl daemon-reload
+sudo systemctl enable ollama robolab-qwen
+sudo systemctl restart ollama
+sudo systemctl restart robolab-qwen
 ```
 
-`ready: true` indica que el conector alcanzó Ollama y encontró el modelo. No equivale a haber generado una misión. El primer arranque carga el modelo y puede tardar más. El límite local es 180 segundos por intento y 540 segundos por solicitud de hasta tres grados, sin cambiar los límites cloud. El formato local fija el grado solicitado y usa por defecto una, dos o tres estaciones para 2.º, 3.º y 4.º, respectivamente; una cantidad explícita en la solicitud tiene prioridad. También fija los cuatro comandos de movimiento para evitar mapas sin giros. Si una propuesta no tiene energía suficiente, el simulador aporta al modelo el costo mínimo de una ruta y el límite solicitado; el modelo debe devolver otra propuesta completa. No se sube el presupuesto ni se aprueba el mapa automáticamente. Esto reduce errores del modelo pequeño, pero no sustituye la validación. El modelo pequeño puede devolver JSON que no tenga solución: se repara hasta dos veces; ninguna plantilla de respaldo se ofrece como contenido generado por IA.
+Guarda antes cualquier drop-in existente y ejecuta sin una generación en curso. Los reinicios aplican la configuración aunque Ollama estuviera activo. El preparador queda `active (exited)` porque termina su tarea; no descarga modelos ni usa cloud. El modelo se libera de memoria después de diez minutos sin uso y vuelve a cargarse cuando se solicita.
 
-Si se desconecta el USB, conserva el objetivo y usa «Comprobar conexión» después de reconectar. Si cierras la página, la solicitud local se cancela. Nunca apagues la Jetson quitando la alimentación durante escrituras; usa `sudo poweroff` antes de desconectarla.
+## Protocolo y evidencia
 
-## Arranque automático y evidencia desde la terminal
+USB CDC ACM, 115200 en la apertura, JSON UTF-8 con un salto de línea por trama. La versión 1 acepta `hello`, `generate`, `ping` y `cancel`, cada uno con `id`. Ejemplo de identificación:
 
-En la Jetson, `ollama.service` mantiene la API activa y `robolab-qwen.service` carga el modelo instalado y comprueba que esté completamente en GPU. El preparador usa Python 3 de Ubuntu, sin pip, y solo llama a `127.0.0.1`: no descarga modelos al arrancar ni necesita una clave cloud. Los archivos estándar están en `ops/jetson/`.
+```json
+{"v":1,"id":"prueba","method":"hello"}
+```
 
-Con Ollama y el modelo ya instalados y sin una generación en curso, guarda una copia de cualquier configuración de RoboLab existente. Desde la raíz de este repositorio en la laptop:
+El resultado identifica `device: robolab-jetson`, `protocol: 1`, proveedor, modelo y disponibilidad. Cada respuesta correlaciona el mismo ID; nunca se ejecuta contenido recibido. Las solicitudes tienen un máximo de 16 KiB y las respuestas de 512 KiB. Solo se acepta una generación simultánea. La web envía latidos cada 4 segundos; después de 15 segundos sin mensajes, el servicio cancela la inferencia. Salir de la pantalla envía una cancelación y cierra el puerto. Los límites de generación son 180 segundos por intento y 540 segundos por solicitud de hasta tres grados.
+
+La propuesta se valida y repara hasta dos veces mediante el orquestador existente. No se presenta una plantilla de respaldo como resultado de IA. La paleta incluye los cuatro movimientos y las reparaciones reciben el costo mínimo calculado por el simulador sin modificar ni aprobar automáticamente la misión.
+
+En la Jetson:
 
 ```bash
-scp ops/jetson/prepare_model.py ops/jetson/robolab-qwen.service ops/jetson/ollama-robolab.conf jetson-usb:/tmp/
-ssh jetson-usb 'sudo install -d -m 755 /usr/local/lib/robolab /etc/systemd/system/ollama.service.d; sudo install -m 644 /tmp/prepare_model.py /usr/local/lib/robolab/prepare_model.py; sudo install -m 644 /tmp/robolab-qwen.service /etc/systemd/system/robolab-qwen.service; sudo install -m 644 /tmp/ollama-robolab.conf /etc/systemd/system/ollama.service.d/robolab.conf; sudo systemctl daemon-reload; sudo systemctl enable ollama robolab-qwen && sudo systemctl restart ollama && sudo systemctl restart robolab-qwen'
+systemctl is-enabled ollama robolab-qwen robolab-usb
+systemctl is-active ollama robolab-qwen robolab-usb
+ollama ps
+sudo journalctl -fu robolab-usb -o cat
 ```
 
-Los reinicios aplican el drop-in incluso si Ollama ya estaba activo y vuelven a ejecutar la comprobación. El preparador aparece como `active (exited)` porque hace una tarea y termina; Ollama continúa ejecutándose. Si el modelo falta o cae a CPU, el preparador informa el error y no lo declara preparado en GPU. El modelo se conserva en memoria diez minutos después de su último uso; si se libera, Ollama lo carga de nuevo cuando recibe una solicitud.
+Los registros de generación contienen `transport: usb_serial`, UUID de generación, modelo, duración, llamadas y huella SHA-256 de las misiones. Esa huella coincide con el JSON recibido aunque se reordenen sus claves. No se registran objetivos, prompts ni IDs libres del modelo. Es evidencia operativa, no un campo de origen confiable en Convex. El preparador registra también hostname, ID del arranque y digest del modelo.
 
-Para comprobar el último arranque:
+Pruebas: `npm run verify` y `npm run test:jetson` (stdlib Python en Linux, incluye pseudoterminal y el CLI Node real). La web prueba la selección por clic, streams fragmentados, identidad, desconexión, cancelación y certificación con Convex.
 
-```bash
-ssh jetson-usb 'systemctl is-enabled ollama robolab-qwen; systemctl is-active ollama robolab-qwen; ollama ps'
-ssh jetson-usb 'sudo journalctl -b -u robolab-qwen --no-pager'
-```
-
-El registro `model_ready` contiene hostname, ID del arranque, modelo, digest, porcentaje GPU, contexto y duración. Para observar las inferencias reales:
-
-```bash
-ssh jetson-usb 'sudo journalctl -fu ollama -o short-iso'
-```
-
-En la laptop, el túnel USB y el acompañante son procesos distintos de Ollama. En esta instalación se administran con servicios de usuario `robolab-jetson-tunnel` y `robolab-local-generation`, habilitados al iniciar sesión; el túnel se reconecta tras perder el USB. Esto no inicia ni despliega Convex o la web en la Jetson.
-
-```bash
-systemctl --user status robolab-jetson-tunnel robolab-local-generation
-journalctl --user -u robolab-local-generation -f -o cat
-```
-
-Cada solicitud válida registra `started` y su resultado (`completed`, `cancelled` o `failed`) con un `generationId`, proveedor y modelo. Al completarse, incluye llamadas, reparaciones y huella SHA-256 de las misiones ofrecidas. La respuesta HTTP incluye ese mismo `generationId`. La huella ordena recursivamente las claves JSON: se puede comparar aunque Convex reordene las propiedades. No se registran objetivos, prompts, nombres de alumnos ni el JSON completo. Los registros describen la generación local; no sustituyen la autorización ni la certificación de Convex, y no se añaden como una declaración de origen confiable en la tabla de misiones.
-
-Las pruebas del preparador se ejecutan con `npm run test:jetson` (Python 3) y en GitHub Actions, sin Jetson ni descargas. `npm run verify` conserva los requisitos existentes del backend.
+El antiguo `npm run agent:local` y el túnel SSH siguen disponibles como herramientas de mantenimiento y pruebas. La web usa USB serial directamente y no recurre a ese transporte ni a cloud automáticamente.

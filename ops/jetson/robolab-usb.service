@@ -1,0 +1,25 @@
+[Unit]
+Description=Generación de RoboLab por USB serial
+Requires=ollama.service
+PartOf=ollama.service
+Wants=robolab-qwen.service
+After=ollama.service robolab-qwen.service nv-l4t-usb-device-mode.service dev-ttyGS0.device
+BindsTo=dev-ttyGS0.device
+Conflicts=serial-getty@ttyGS0.service
+StartLimitIntervalSec=0
+
+[Service]
+User=jetson
+Group=dialout
+WorkingDirectory=/opt/robolab/backend
+ExecStart=/usr/bin/python3 -B /opt/robolab/backend/ops/jetson/open_usb.py /dev/ttyGS0
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target
