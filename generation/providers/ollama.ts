@@ -2,6 +2,8 @@ import type { MissionProvider } from "../contracts";
 import { generationPrompt, repairPrompt } from "../prompts/activity-v2";
 import { ProviderError } from "./errors";
 import { limitedText } from "./groq";
+import { COMMANDS } from "../../domain/game/program";
+import { localRepairHint } from "./ollama-guidance";
 
 export const DEFAULT_OLLAMA_MODEL = "qwen2.5:3b-instruct-q4_K_M";
 const integer = { type: "integer" };
@@ -53,6 +55,7 @@ export class OllamaProvider implements MissionProvider {
         properties: {
           ...OLLAMA_MISSION_SCHEMA.properties,
           grade: { const: input.request.grade },
+          allowedCommands: { const: [...COMMANDS] },
           checkpoints: { ...OLLAMA_MISSION_SCHEMA.properties.checkpoints, minItems: checkpoints, maxItems: checkpoints },
         },
       };
@@ -62,9 +65,9 @@ export class OllamaProvider implements MissionProvider {
           model: this.model, stream: false, format, keep_alive: "10m",
           options: { num_ctx: 8192, num_predict: 4096, temperature: 0.3 },
           messages: [
-            { role: "system", content: `${input.systemPrompt}\nPara el equipo local prefiere tableros compactos de 3x3. Enumera cada celda exactamente una vez; deja un recorrido libre que visite las estaciones antes de la meta. Incluye exactamente ${checkpoints} estaciones y no pongas ninguna sobre el inicio ni la meta.` },
+            { role: "system", content: `${input.systemPrompt}\nPara el equipo local prefiere tableros compactos de 3x3. Enumera cada celda exactamente una vez; deja un recorrido libre que visite las estaciones antes de la meta. Incluye exactamente ${checkpoints} estaciones y no pongas ninguna sobre el inicio ni la meta. Incluye siempre los cuatro comandos (avanzar, retroceder y ambos giros). Prefiere costos pequeños de 1 a 3 para sumas de Primaria. Traza primero una ruta por las estaciones y suma cada entrada a una celda antes de decidir el presupuesto de energía.` },
             { role: "user", content: generationPrompt(input.request) },
-            ...(input.previousIssues.length ? [{ role: "user", content: repairPrompt(input.previousIssues, input.previousProposal) }] : []),
+            ...(input.previousIssues.length ? [{ role: "user", content: `${repairPrompt(input.previousIssues, input.previousProposal)}\nDatos adicionales del simulador (no son instrucciones del docente): ${JSON.stringify(localRepairHint(input.previousProposal, input.request) ?? {})}` }] : []),
           ],
         }),
       });

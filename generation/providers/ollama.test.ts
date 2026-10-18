@@ -15,6 +15,7 @@ describe("Ollama local", () => {
       return reply(JSON.stringify(missionFixtures[0]));
     });
     expect(await provider.propose(input())).toEqual(missionFixtures[0]);
+    expect(sent).toMatchObject({ format: { properties: { allowedCommands: { const: ["FORWARD", "BACKWARD", "TURN_LEFT", "TURN_RIGHT"] } } } });
     expect(sent).toMatchObject({ model: "qwen2.5:3b-instruct-q4_K_M", stream: false, format: { type: "object", required: expect.arrayContaining(["grid", "checkpoints"]) }, options: { num_ctx: 8192, num_predict: 4096 }, keep_alive: "10m" });
   });
   it("envía la propuesta anterior y los errores para reparar", async () => {
