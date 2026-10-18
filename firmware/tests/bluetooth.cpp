@@ -3,6 +3,7 @@
 #include <vector>
 #include "../robolab_bluetooth/Protocol.h"
 #include "../robolab_bluetooth/BleTransport.h"
+#include "../robolab_bluetooth/UsbTransport.h"
 
 struct Reply { std::string id, value; };
 static void capture(void* context, const char* id, const char* reply) {
@@ -89,8 +90,66 @@ static void testBleTransport() {
   assert(replies.back().id == "committed" && replies.back().value == "RUN");
 }
 
+static void testUsbTransport() {
+  const robolab::Config config = {1000, 1000, 1000, 100, 100000, true};
+  std::vector<Reply> replies;
+  robolab::RobotSession robot(config, capture, &replies);
+  robolab::UsbTransport usb(robot);
+  auto feed = [&](const std::string& text, uint32_t now) {
+    for (const char byte : text) usb.feed(byte, now);
+  };
+  feed("HELLO\nRUN reuse A\n", 0);
+  robot.tick(250, true);
+  assert(robot.motion().output().left && robot.motion().output().right);
+  feed("P", 500); // La P de PING no es una orden de emergencia por caracter.
+  assert(robot.motion().active());
+  feed("ING\n", 500);
+  assert(replies.back().value == "PONG" && robot.motion().active());
+  feed("noiseHELLO\n", 600); // Solo una linea HELLO exacta abre otra sesion.
+  assert(robot.motion().active() && replies.back().value == "ERR:FRAME");
+  feed("HELLO\r\n", 700);
+  assert(!robot.motion().active());
+  assert(!robot.motion().output().left && !robot.motion().output().right);
+  assert(replies.back().value == "ROBO/1 ADZ ARC");
+  feed("RUN reuse A\n", 800); // Un HELLO nuevo limpia los ids de la sesion anterior.
+  assert(robot.motion().active() && replies.back().value == "RUN");
+  feed("RUN partial ", 810);
+  feed(std::string("\0\n", 2) + "STOP\nHELLO\n", 820); // Prefijo real al abrir/reintentar desde Chrome.
+  assert(!robot.motion().active() && replies.back().value == "ROBO/1 ADZ ARC");
+  feed("A\n", 830);
+  assert(!robot.motion().active() && replies.back().value == "ERR:FRAME");
+  feed("HELLO\nRUN old A", 840);
+  const size_t beforeResync = replies.size();
+  feed(std::string("\0\n", 2), 850); // Nunca completar el RUN viejo con el LF inicial.
+  assert(!robot.motion().active());
+  assert(!robot.motion().output().left && !robot.motion().output().right);
+  assert(replies.back().value == "ERR:FRAME");
+  for (size_t i = beforeResync; i < replies.size(); ++i) {
+    assert(!(replies[i].id == "old" && (replies[i].value == "OK" || replies[i].value == "RUN")));
+  }
+  feed("STOP\nHELLO\n", 860);
+  assert(replies.back().value == "ROBO/1 ADZ ARC");
+  feed("RUN long " + std::string(30, 'A') + "\n", 900);
+  feed("PING\n", 1000);
+  robot.tick(1250, true);
+  assert(robot.motion().output().left && robot.motion().output().right);
+  robot.tick(4499, true);
+  assert(robot.motion().active());
+  robot.tick(4500, true);
+  assert(!robot.motion().output().left && !robot.motion().output().right);
+  assert(replies.back().id == "long" && replies.back().value == "ERR:HEARTBEAT");
+  feed("RUN blocked A\n", 4510);
+  assert(!robot.motion().active());
+  feed("HELLO\n", 4520);
+  feed(std::string(220, 'A') + "\n", 4530);
+  assert(replies.back().value == "ERR:FRAME");
+  feed("HELLO\nRUN reuse A\n", 4540);
+  assert(robot.motion().active() && replies.back().value == "RUN");
+}
+
 int main() {
   testBleTransport();
+  testUsbTransport();
   const robolab::Config config = {1000, 1000, 1000, 100, 100000, true};
   std::vector<Reply> replies;
   robolab::RobotSession session(config, capture, &replies);

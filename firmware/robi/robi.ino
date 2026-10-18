@@ -1,14 +1,14 @@
-// RoboLab completo en un archivo: motores, ojos, luces, sonidos y Bluetooth BLE.
+// RoboLab completo en un archivo: motores, ojos, luces, sonidos y USB Serial (BLE opcional).
 // Se puede copiar como robi/robi.ino. No necesita cabeceras locales.
 // Exportado con npm run firmware:bundle desde firmware/robolab_bluetooth.
 
-// RoboLab: Bluetooth Low Energy UART, Arduino-ESP32 3.3.11 (Bluedroid).
-// No requiere wifi, cuenta, emparejamiento del sistema ni bonding.
+// RoboLab: USB Serial (UART 115200) por defecto, Arduino-ESP32 3.3.11.
+// Para experimentar con BLE UART, compilar con ROBOLAB_USAR_BLE=1.
+#ifndef ROBOLAB_USAR_BLE
+#define ROBOLAB_USAR_BLE 0
+#endif
 #include <Arduino.h>
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLE2902.h>
-#include <freertos/semphr.h>
+#include <atomic>
 // ---- Config.h integrado ----
 
 #include <Arduino.h>
@@ -521,6 +521,51 @@ class VidaRobot {
 };
 
 
+// ---- UsbTransport.h integrado ----
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+// ---- Protocol.h integrado ----
+
+
+namespace robolab {
+// UART no expone el cierre del USB a través de un puente CH340. Cada HELLO
+// completo inicia sesión; el cliente escribe \x00\nSTOP\nHELLO\n al abrir el puerto.
+class UsbTransport {
+ public:
+  using Reset = void (*)(void*);
+  explicit UsbTransport(RobotSession& session, Reset reset = nullptr, void* context = nullptr)
+      : session_(session), reset_(reset), context_(context) {}
+
+  void feed(char byte, uint32_t now) {
+    if (byte != '\n') {
+      // NUL se conserva: invalida cualquier RUN parcial antes de resincro.
+      // Conservar 201 bytes basta para que RobotSession rechace una línea >200.
+      if (length_ < sizeof(line_)) line_[length_++] = byte;
+      return;
+    }
+    const bool hello = (length_ == 5 && std::memcmp(line_, "HELLO", 5) == 0) ||
+        (length_ == 6 && std::memcmp(line_, "HELLO\r", 6) == 0);
+    if (hello) {
+      session_.reset(); // Apaga salidas, olvida ids y vacía el parser anterior.
+      if (reset_) reset_(context_); // Aplicar motores apagados antes de emitir identidad.
+    }
+    for (size_t i = 0; i < length_; ++i) session_.feed(line_[i], now);
+    session_.feed('\n', now);
+    clear();
+  }
+  void clear() { length_ = 0; }
+
+ private:
+  RobotSession& session_;
+  Reset reset_;
+  void* context_;
+  char line_[201] = {};
+  size_t length_ = 0;
+};
+}
+
 // ---- BleTransport.h integrado ----
 
 #include <cstddef>
@@ -586,25 +631,31 @@ class BleTransport {
 };
 }
 
-
+#if ROBOLAB_USAR_BLE
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLE2902.h>
+#include <freertos/semphr.h>
 #if !defined(CONFIG_BLUEDROID_ENABLED)
-#error "Este sketch necesita la biblioteca BLE Bluedroid de Arduino-ESP32."
+#error "La variante BLE necesita Bluedroid de Arduino-ESP32."
+#endif
 #endif
 
+VidaRobot vida;
+struct Packet { uint32_t epoch; char text[100]; };
+QueueHandle_t outgoing = nullptr;
+bool ready = false, pwmReady = false, happyForward = true;
+#if ROBOLAB_USAR_BLE
 constexpr char SERVICE_UUID[] = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 constexpr char RX_UUID[] = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 constexpr char TX_UUID[] = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 BLEServer* bluetooth = nullptr;
 BLECharacteristic* tx = nullptr;
 BLE2902* subscription = nullptr;
-VidaRobot vida;
-struct Packet { uint32_t epoch; char text[100]; };
-QueueHandle_t outgoing = nullptr;
 SemaphoreHandle_t notificationGate = nullptr;
 portMUX_TYPE radioMux = portMUX_INITIALIZER_UNLOCKED;
 robolab::BleTransport radio;
 uint32_t loopEpoch = 0;
-bool ready = false, pwmReady = false, happyForward = true;
 bool advertisePending = false;
 
 robolab::BleTransport::State radioState() {
@@ -620,10 +671,26 @@ void failConnection(uint32_t epoch) {
   portEXIT_CRITICAL(&radioMux);
 }
 
+#else
+std::atomic<uint32_t> usbEpoch{0};
+std::atomic<bool> writeFailed{false};
+void failConnection(uint32_t epoch) {
+  if (epoch == usbEpoch.load()) writeFailed.store(true);
+}
+#endif
+
+uint32_t replyEpoch() {
+#if ROBOLAB_USAR_BLE
+  return loopEpoch;
+#else
+  return usbEpoch.load();
+#endif
+}
+
 // La tarea de motores nunca espera notificaciones. Cola fija, envío sin espera.
 void enqueueReply(void*, const char* id, const char* value) {
   Packet packet{};
-  packet.epoch = loopEpoch;
+  packet.epoch = replyEpoch();
   if (*id) snprintf(packet.text, sizeof(packet.text), "STATUS %s %s\n", id, value);
   else snprintf(packet.text, sizeof(packet.text), "%s\n", value);
   if (!outgoing || xQueueSend(outgoing, &packet, 0) != pdTRUE) failConnection(packet.epoch);
@@ -635,6 +702,7 @@ const robolab::Config movementConfig = {
 };
 robolab::RobotSession session(movementConfig, enqueueReply, nullptr);
 
+#if ROBOLAB_USAR_BLE
 class ConnectionCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer*, esp_ble_gatts_cb_param_t* event) override {
     subscription->setNotifications(false);
@@ -698,6 +766,18 @@ void sendReplies(void*) {
   }
 }
 
+#else
+void sendReplies(void*) {
+  Packet packet{};
+  for (;;) {
+    if (xQueueReceive(outgoing, &packet, portMAX_DELAY) != pdTRUE) continue;
+    if (packet.epoch != usbEpoch.load()) continue;
+    const size_t size = strlen(packet.text);
+    if (Serial.write(reinterpret_cast<const uint8_t*>(packet.text), size) != size) failConnection(packet.epoch);
+  }
+}
+#endif
+
 void applyMotors() {
   if (!pwmReady) {
     digitalWrite(MOTOR_IZQUIERDO, LOW);
@@ -720,6 +800,15 @@ void animateStep() {
   }
 }
 
+#if !ROBOLAB_USAR_BLE
+void resetUsbConnection(void*) {
+  usbEpoch.fetch_add(1); // No enviar respuestas pendientes de una sesión anterior.
+  applyMotors(); // UsbTransport ya dejó las salidas apagadas antes de HELLO.
+  vida.silenciar(); vida.neutral();
+}
+robolab::UsbTransport usb(session, resetUsbConnection);
+#endif
+
 void setup() {
   pinMode(MOTOR_IZQUIERDO, OUTPUT); digitalWrite(MOTOR_IZQUIERDO, LOW);
   pinMode(MOTOR_DERECHO, OUTPUT); digitalWrite(MOTOR_DERECHO, LOW);
@@ -735,6 +824,7 @@ void setup() {
     Serial.println("Configuracion/PWM invalido. Motores apagados."); return;
   }
   outgoing = xQueueCreate(16, sizeof(Packet));
+#if ROBOLAB_USAR_BLE
   notificationGate = xSemaphoreCreateMutex();
   if (!outgoing || !notificationGate) {
     Serial.println("No se pudo iniciar BLE. Motores apagados."); return;
@@ -763,8 +853,17 @@ void setup() {
   ready = true;
   Serial.printf("Abre RoboLab en Chrome y elige %s por Bluetooth BLE.\n", ROBOT_NOMBRE);
   Serial.println("Monitor serie: P = parar. R no disponible; D/Z son giros en arco.");
+#else
+  if (!outgoing || xTaskCreate(sendReplies, "robolab-usb-tx", 4096, nullptr, 1, nullptr) != pdPASS) {
+    Serial.println("No se pudo iniciar USB Serial. Motores apagados."); return;
+  }
+  ready = true;
+  Serial.println("Abre RoboLab en Chrome y elige el robot conectado por USB (115200).");
+  Serial.println("Para parar: boton Parar robot o linea STOP. R no disponible; D/Z son giros en arco.");
+#endif
 }
 
+#if ROBOLAB_USAR_BLE
 void synchronizeConnection() {
   const auto state = radioState();
   if (state.epoch == loopEpoch) return;
@@ -834,3 +933,28 @@ void loop() {
   restartAdvertising();
   delay(2);
 }
+#else
+void loop() {
+  // CH340 no informa del cierre del puerto al ESP32: el latido sigue siendo
+  // obligatorio incluso conectado por cable. Procesarlo antes que los comandos.
+  session.tick(millis(), ready);
+  applyMotors();
+  if (writeFailed.exchange(false)) {
+    session.stop("ERR:NETWORK");
+    applyMotors();
+    session.reset(); usb.clear();
+    usbEpoch.fetch_add(1);
+    writeFailed.store(false);
+  }
+  if (ready) {
+    for (int i = 0; i < 256 && Serial.available(); ++i) {
+      usb.feed(static_cast<char>(Serial.read()), millis());
+    }
+  }
+  session.tick(millis(), ready);
+  applyMotors();
+  animateStep();
+  vida.actualizar(!session.motion().moving());
+  delay(2);
+}
+#endif
