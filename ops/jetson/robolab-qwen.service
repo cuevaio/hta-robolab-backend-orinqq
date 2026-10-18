@@ -1,0 +1,25 @@
+[Unit]
+Description=Preparar Qwen local de RoboLab y comprobar GPU
+Requires=ollama.service
+After=ollama.service nvpmodel.service
+PartOf=ollama.service
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+User=ollama
+Group=ollama
+ExecStart=/usr/bin/python3 -B /usr/local/lib/robolab/prepare_model.py
+RemainAfterExit=yes
+TimeoutStartSec=360
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

@@ -17,3 +17,5 @@ jobs:
       - run: npm ci
       # Tipos, lint, pruebas (dominio y backend con convex-test) y build. No necesita secretos.
       - run: npm run verify
+      # El arranque de la Jetson se prueba aparte con Python 3 (stdlib), sin placa ni descargas.
+      - run: npm run test:jetson

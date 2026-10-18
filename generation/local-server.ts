@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { missionFingerprint } from "./local-audit";
+import type { LocalGenerationEvent } from "./local-audit";
 import { createServer } from "node:http";
 import type { IncomingMessage } from "node:http";
 import type { MissionProvider } from "./contracts";
@@ -27,7 +30,7 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
 }
 /** Solo escucha en loopback desde el CLI. Los orígenes se fijan al arrancar, no desde la web. */
 export function createLocalGenerationServer(options: {
-  provider: MissionProvider; allowedOrigins: readonly string[]; timeoutMs?: number; totalMs?: number; checkModel?: () => Promise<boolean>;
+  provider: MissionProvider; allowedOrigins: readonly string[]; timeoutMs?: number; totalMs?: number; checkModel?: () => Promise<boolean>; onEvent?: (event: LocalGenerationEvent) => void;
 }) {
   let busy = false;
   return createServer(async (req, res) => {
@@ -61,15 +64,27 @@ export function createLocalGenerationServer(options: {
       // Se comprueba también tras leer: otra petición puede haber reservado el equipo.
       if (busy) throw new HttpError(409, "La Jetson está generando otra misión. Espera a que termine.");
       busy = true;
+      const generationId = randomUUID(); const started = Date.now();
+      const emit = (phase: LocalGenerationEvent["phase"], extra: Partial<Pick<LocalGenerationEvent, "durationMs" | "missions" | "failed" | "calls" | "repairs">> = {}) => {
+        try { options.onEvent?.({ phase, generationId, at: new Date().toISOString(), provider: options.provider.name, model: options.provider.model, ...extra }); }
+        catch { /* Un fallo del registro no altera la generación ni el bloqueo. */ }
+      };
+      emit("started");
       try {
         const results = await generateActivity(request, options.provider, {
           timeoutMs: options.timeoutMs ?? LOCAL_TIMEOUT_MS, totalMs: options.totalMs ?? LOCAL_TOTAL_MS,
           signal: controller.signal,
         });
-        send(200, {
-          missions: results.filter(r => r.origin === "ai_generated").map(r => r.mission),
-          failed: results.filter(r => r.origin !== "ai_generated").map(r => ({ grade: r.mission.grade, code: r.errorCode ?? "PROVIDER_UNAVAILABLE" })),
+        const missions = results.filter(r => r.origin === "ai_generated").map(r => r.mission);
+        const failed = results.filter(r => r.origin !== "ai_generated").map(r => ({ grade: r.mission.grade, code: r.errorCode ?? "PROVIDER_UNAVAILABLE" as const }));
+        emit("completed", {
+          durationMs: Date.now() - started, calls: results.reduce((sum, r) => sum + r.calls, 0), repairs: results.reduce((sum, r) => sum + r.repairs, 0),
+          missions: missions.map(mission => ({ grade: mission.grade, sha256: missionFingerprint(mission) })), failed,
         });
+        send(200, { generationId, missions, failed });
+      } catch (error) {
+        emit(controller.signal.aborted ? "cancelled" : "failed", { durationMs: Date.now() - started });
+        throw error;
       } finally { busy = false; }
     } catch (error) {
       if (!controller.signal.aborted) {

@@ -13,7 +13,7 @@ if (endpoint.hostname !== "127.0.0.1" || endpoint.protocol !== "http:" || endpoi
 const port = Number(process.env.AGENT_LOCAL_PORT ?? 8765);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("AGENT_LOCAL_PORT debe estar entre 1024 y 65535.");
 const provider = new OllamaProvider(endpoint.origin, process.env.OLLAMA_MODEL?.trim() || undefined);
-const server = createLocalGenerationServer({ provider, allowedOrigins: origins, checkModel: () => provider.isAvailable() });
+const server = createLocalGenerationServer({ provider, allowedOrigins: origins, checkModel: () => provider.isAvailable(), onEvent: event => console.log(JSON.stringify({ agent: "local_generation", ...event })) });
 server.listen(port, "127.0.0.1", () => {
   console.log(`Conector RoboLab: http://127.0.0.1:${port} · ${provider.model}`);
   console.log(`Orígenes permitidos: ${origins.join(", ")}`);
