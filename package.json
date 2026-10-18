@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "private": false,
   "type": "module",
-  "description": "RoboLab: backend en Convex, dominio compartido (reglas del juego y de la evaluaci\u00f3n) y robot por wifi.",
+  "description": "RoboLab: backend en Convex, dominio compartido (reglas del juego y de la evaluación) y robot por wifi.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/orinqq/robolab-backend.git"
@@ -34,7 +34,9 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "npm run typecheck && npm run lint && npm run test"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run test:firmware",
+    "test:firmware": "node --test scripts/bundle-firmware.test.mjs && node scripts/bundle-firmware.mjs --check && node scripts/test-firmware.mjs",
+    "firmware:bundle": "node scripts/bundle-firmware.mjs"
   },
   "dependencies": {
     "@auth/core": "0.41.3",
