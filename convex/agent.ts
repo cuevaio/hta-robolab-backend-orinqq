@@ -14,7 +14,7 @@ import { findSimpleAlternative } from "../domain/mission/alternative";
 import { parseCustomMission } from "../domain/mission/custom";
 import type { Mission } from "../domain/mission/contracts";
 import { type GenerationErrorCode } from "../generation/contracts";
-import { generateActivity } from "../generation/orchestrator";
+import { constraintIssues, generateActivity } from "../generation/orchestrator";
 import { chooseProvider } from "../generation/providers/select";
 import { parseActivityRequest } from "../generation/request";
 import { evaluate_difficulty, validate_mission } from "../generation/tools";
@@ -119,6 +119,44 @@ export const generate = action({
         .filter((r) => r.origin !== "ai_generated")
         .map((r) => ({ grade: r.mission.grade, code: r.errorCode ?? ("PROVIDER_UNAVAILABLE" as const) })),
     };
+  },
+});
+
+/** La inferencia se hace en la Jetson; Convex autoriza y certifica lo que el navegador trae. */
+export const reviewLocal = action({
+  args: {
+    objective: v.string(), grades: v.array(v.number()), difficulty: v.optional(v.string()),
+    missions: v.array(v.any()),
+  },
+  returns: v.object({ status: v.literal("ok"), proposals: v.array(v.any()), failed: v.array(v.object({ grade: v.number(), code: v.string() })) }),
+  handler: async (ctx, args): Promise<{ status: "ok"; proposals: Proposal[]; failed: { grade: 2 | 3 | 4; code: GenerationErrorCode }[] }> => {
+    await ctx.runQuery(internal.agent.teacher, {});
+    if (args.missions.length > 3) throw new ConvexError("Envía como máximo tres propuestas.");
+    let request;
+    try { request = parseActivityRequest(args); }
+    catch (error) {
+      if (error instanceof ContractError) throw new ConvexError(error.issues[0]?.message ?? "La solicitud no es válida.");
+      throw error;
+    }
+    const candidates: Mission[] = [];
+    for (const input of args.missions) {
+      try { candidates.push(parseCustomMission(input)); } catch { /* No se ofrece contenido ajeno al contrato. */ }
+    }
+    const proposals: Proposal[] = [];
+    const failed: { grade: 2 | 3 | 4; code: GenerationErrorCode }[] = [];
+    for (const grade of request.grades) {
+      const matches = candidates.filter(m => m.grade === grade);
+      const mission = matches.length === 1 ? matches[0] : undefined;
+      const checked = mission ? validate_mission(mission) : undefined;
+      const issue = checked?.ok && mission ? constraintIssues(mission, request, grade)[0] : undefined;
+      if (!mission || !checked?.ok || issue) {
+        failed.push({ grade, code: issue?.code ?? (checked && !checked.ok ? checked.issues[0]?.code : undefined) ?? "SCHEMA_INVALID" });
+        continue;
+      }
+      const canonical = { ...mission, objective: request.objective };
+      proposals.push({ grade, mission: canonical, metrics: evaluate_difficulty(canonical), alternativeCost: alternativeCostOf(canonical) });
+    }
+    return { status: "ok", proposals, failed };
   },
 });
 

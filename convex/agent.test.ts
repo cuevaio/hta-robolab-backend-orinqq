@@ -196,3 +196,33 @@ describe("asistente: guardar lo que el docente eligió", () => {
     await expect(t.mutation(api.agent.save, { mission: FIXTURE(2) })).rejects.toThrow(/Inicia sesión/);
   });
 });
+
+describe("asistente: propuestas de la Jetson", () => {
+  it("requiere docente y vuelve a certificar sin llamar a un proveedor cloud", async () => {
+    const { t, teacher } = await withTeacher();
+    const args = { objective: OBJETIVO, grades: [2, 3], missions: [FIXTURE(2), FIXTURE(3)] };
+    await expect(t.action(api.agent.reviewLocal, args)).rejects.toThrow(/Inicia sesión/);
+    const result = await teacher.action(api.agent.reviewLocal, args);
+    expect(result).toMatchObject({ status: "ok", failed: [], proposals: [
+      { grade: 2, mission: { objective: OBJETIVO }, metrics: { solutionStatus: "SOLVED" } },
+      { grade: 3, metrics: { solutionStatus: "SOLVED" } },
+    ] });
+    expect(fetchMock).not.toHaveBeenCalled();
+    if (result.status !== "ok") throw new Error("se esperaba ok");
+    const id = await teacher.mutation(api.agent.save, { mission: result.proposals[0]!.mission });
+    expect(await teacher.query(api.agent.get, { id })).toMatchObject({ grade: 2 });
+  });
+  it("descarta respuestas falsas, imposibles, duplicadas y grados no pedidos", async () => {
+    const { teacher } = await withTeacher();
+    const bad = { ...FIXTURE(2), energyBudget: 1 };
+    expect(await teacher.action(api.agent.reviewLocal, { objective: OBJETIVO, grades: [2, 3], missions: [bad, { forged: true }, FIXTURE(4)] })).toMatchObject({ proposals: [], failed: [{ grade: 2 }, { grade: 3 }] });
+    const duplicated = await teacher.action(api.agent.reviewLocal, { objective: OBJETIVO, grades: [2], missions: [FIXTURE(2), FIXTURE(2)] });
+    expect(duplicated.proposals).toEqual([]);
+    expect(duplicated.failed).toEqual([{ grade: 2, code: "SCHEMA_INVALID" }]);
+  });
+  it("acota el número de propuestas y valida la solicitud antes de resolver", async () => {
+    const { teacher } = await withTeacher();
+    await expect(teacher.action(api.agent.reviewLocal, { objective: OBJETIVO, grades: [2], missions: Array(4).fill(FIXTURE(2)) })).rejects.toThrow(/tres/);
+    await expect(teacher.action(api.agent.reviewLocal, { objective: "corto", grades: [2], missions: [] })).rejects.toThrow(/objetivo/i);
+  });
+});

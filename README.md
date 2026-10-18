@@ -226,3 +226,7 @@ recuperación de contraseña y el relé del robot. Las reglas para colaborar
   el alumno y el servidor, sin problemas de zona horaria.
 - **Relé en la nube para el robot**: una página HTTPS no puede hablarle a un
   aparato de la red local, así que el robot recoge el programa del backend.
+
+### Generación local en Jetson
+
+La generación con Qwen 2.5 3B mediante Ollama y USB usa un [servicio USB serial en la Jetson](docs/JETSON.md), seleccionable desde el navegador sin instalar un conector en cada computadora. Conserva los proveedores cloud y la validación de Convex; la inferencia local no necesita claves cloud.
