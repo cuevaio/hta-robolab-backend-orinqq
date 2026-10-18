@@ -76,12 +76,20 @@ async function timedProposal(
   provider: MissionProvider,
   input: Omit<Parameters<MissionProvider["propose"]>[0], "signal">,
   timeoutMs: number,
+  parentSignal?: AbortSignal,
 ): Promise<unknown> {
   const controller = new AbortController();
+  const signal = parentSignal ? AbortSignal.any([controller.signal, parentSignal]) : controller.signal;
+  let cancel: (() => void) | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
-      provider.propose({ ...input, signal: controller.signal }),
+      provider.propose({ ...input, signal }),
+      new Promise<never>((_, reject) => {
+        cancel = () => reject(new ProviderError("PROVIDER_TIMEOUT", provider.name));
+        signal.addEventListener("abort", cancel, { once: true });
+        if (signal.aborted) cancel();
+      }),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
           try {
@@ -95,12 +103,13 @@ async function timedProposal(
     ]);
   } finally {
     clearTimeout(timer);
+    if (cancel) signal.removeEventListener("abort", cancel);
   }
 }
 export async function generateActivity(
   input: unknown,
   provider: MissionProvider,
-  options: { timeoutMs?: number; totalMs?: number } = {},
+  options: { timeoutMs?: number; totalMs?: number; signal?: AbortSignal } = {},
 ): Promise<GeneratedProposal[]> {
   const request = parseActivityRequest(input);
   const promptVersion = request.family ? MECHANICS_PROMPT_VERSION : LEGACY_PROMPT_VERSION;
@@ -119,6 +128,7 @@ export async function generateActivity(
       attempt <= GENERATION_POLICY.maxRepairRetries;
       attempt++
     ) {
+      if (options.signal?.aborted) throw new ProviderError("PROVIDER_TIMEOUT", provider.name);
       const remaining = deadline - Date.now();
       if (remaining <= 0) {
         errorCode = "PROVIDER_TIMEOUT";
@@ -145,6 +155,7 @@ export async function generateActivity(
             options.timeoutMs ?? GENERATION_POLICY.providerTimeoutMs,
             remaining,
           ),
+          options.signal,
         );
         const validation = validate_mission(previousProposal);
         previousIssues = validation.ok
@@ -167,6 +178,7 @@ export async function generateActivity(
         });
         if (mission) break;
       } catch (error) {
+        if (options.signal?.aborted) throw new ProviderError("PROVIDER_TIMEOUT", provider.name);
         const safe =
           error instanceof ProviderError
             ? error
