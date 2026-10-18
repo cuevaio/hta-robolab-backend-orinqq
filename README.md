@@ -19,9 +19,11 @@ Educación Escolar). Este repo tiene todo lo que no es pantalla:
 - `firmware/` y [docs/robot-wifi.md](docs/robot-wifi.md): el ESP32 que recibe el
   programa por wifi y el contrato que cumple.
 
-También está disponible el enlace directo por **Bluetooth Classic SPP** para
-ESP32 clásico, con el firmware de motores, ojos y sonidos del equipo. La guía
-de carga, emparejamiento y capacidades está en [docs/robot-bluetooth.md](docs/robot-bluetooth.md).
+El enlace directo predeterminado del robot usa **USB Serial (115200)** desde
+Chrome de escritorio, con el firmware de motores, ojos y sonidos del equipo.
+La guía de carga, conexión y capacidades está en
+[docs/robot-bluetooth.md](docs/robot-bluetooth.md); BLE queda como variante opcional
+para experimentación.
 El sketch listo para copiar al Arduino IDE es
 [`firmware/robi/robi.ino`](firmware/robi/robi.ino): incluye en un solo archivo
 la configuración, los motores, ojos, luces, sonidos y el receptor de órdenes.
@@ -227,4 +229,4 @@ recuperación de contraseña y el relé del robot. Las reglas para colaborar
 
 ### Generación local en Jetson
 
-La generación con Qwen 2.5 3B mediante Ollama y USB se prepara con el [conector local](docs/JETSON.md). Conserva los proveedores cloud y la validación de Convex; la inferencia local no necesita claves cloud.
+La generación con Qwen 2.5 3B mediante Ollama y USB usa un [servicio USB serial en la Jetson](docs/JETSON.md), seleccionable desde el navegador sin instalar un conector en cada computadora. Conserva los proveedores cloud y la validación de Convex; la inferencia local no necesita claves cloud.
