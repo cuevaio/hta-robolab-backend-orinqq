@@ -9,7 +9,7 @@
  * intento nuevo y todos quedan registrados.
  */
 import { ConvexError, v } from "convex/values";
-import { catalogItem } from "../domain/classroom/catalog";
+import { agentIdOf } from "../domain/classroom/agentItem";
 import { isValidJoinCode, normalizeJoinCode } from "../domain/classroom/joinCode";
 import { cleanNickname, nameKey } from "../domain/classroom/studentName";
 import {
@@ -26,6 +26,8 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { type MutationCtx, type QueryCtx, mutation, query } from "./_generated/server";
 import { attemptNumber, attemptsOf, runsOf } from "./lib/attempts";
 import { classroomLabel, requireStudent } from "./lib/access";
+import { verifyAgentPlay } from "./lib/agentPlay";
+import { agentMissionOf, resolveItem } from "./lib/items";
 import { visibleAssignments, studentsOf } from "./lib/classwork";
 import { countFinishedAttempt, countPlay } from "./lib/impact";
 import { MAX_PLAYS_PER_MINUTE, PLAY_WINDOW_MS, TOO_MANY_PLAYS, playArgs, verifyPlay } from "./lib/plays";
@@ -253,12 +255,11 @@ export const home = query({
         .filter((p) => p.solved)
         .map((p) => p.challengeId),
     );
-    const classChallenges = (await visibleAssignments(ctx, classroom._id)).flatMap((a) => {
-      const item = catalogItem(a.challengeId);
-      return item
-        ? [{ assignmentId: a._id, challengeId: a.challengeId, title: item.title, level: item.level, kind: item.kind, solved: solvedIds.has(a.challengeId) }]
-        : [];
-    });
+    const classChallenges = [];
+    for (const a of await visibleAssignments(ctx, classroom._id)) {
+      const item = await resolveItem(ctx, a.challengeId);
+      if (item) classChallenges.push({ assignmentId: a._id, challengeId: a.challengeId, title: item.title, level: item.level, kind: item.kind, solved: solvedIds.has(a.challengeId) });
+    }
     return {
       displayName: student.displayName,
       level: classroom.level,
@@ -273,6 +274,23 @@ export const home = query({
   },
 });
 
+/** La misión del asistente `ia:…` si está visible (no es borrador ni está cerrada) en esa clase. */
+async function classAgentMission(ctx: QueryCtx, classroomId: Id<"classrooms">, challengeId: string) {
+  const visible = (await visibleAssignments(ctx, classroomId)).some((a) => a.challengeId === challengeId);
+  return visible ? await agentMissionOf(ctx, challengeId) : null;
+}
+
+/** El tablero de una misión del asistente que el docente le dejó a la clase de este alumno; null si no la tiene. */
+export const agentMission = query({
+  args: { token: v.string(), challengeId: v.string() },
+  handler: async (ctx, { token, challengeId }) => {
+    const { classroom } = await requireStudent(ctx, token);
+    if (agentIdOf(challengeId) === null) return null;
+    const doc = await classAgentMission(ctx, classroom._id, challengeId);
+    return doc ? doc.mission : null;
+  },
+});
+
 /**
  * El alumno terminó una partida de un reto de su clase (o de cualquier reto
  * abierto). Igual que `explore.recordPlay`, el servidor vuelve a revisar el
@@ -284,7 +302,10 @@ export const recordChallengePlay = mutation({
   args: { token: v.string(), ...playArgs },
   handler: async (ctx, { token, ...input }): Promise<{ solved: boolean }> => {
     const { student } = await requireStudent(ctx, token);
-    const { challengeId, play } = verifyPlay(input);
+    // Una misión del asistente: debe estar visible en la clase de este alumno; el servidor la vuelve a ejecutar.
+    const agent = agentIdOf(input.challengeId) === null ? null : await classAgentMission(ctx, student.classroomId, input.challengeId);
+    if (agentIdOf(input.challengeId) !== null && !agent) throw new ConvexError("Ese reto no existe.");
+    const { challengeId, play } = agent ? verifyAgentPlay(agent, input.challengeId, input) : verifyPlay(input);
 
     const now = Date.now();
     const recent = await ctx.db

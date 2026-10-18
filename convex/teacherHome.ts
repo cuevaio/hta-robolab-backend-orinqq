@@ -3,12 +3,13 @@
  * las evaluaciones de hoy. Todo en una consulta para que la pantalla cargue de
  * una vez.
  */
-import { catalog, catalogItem } from "../domain/classroom/catalog";
+import { catalog } from "../domain/classroom/catalog";
 import { summarizeChallenge } from "../domain/classroom/challengeStats";
 import { limaCalendarDate } from "../domain/evaluation/calendar";
 import { query } from "./_generated/server";
 import { summarize } from "./evaluations";
 import { classroomLabel, requireTeacher } from "./lib/access";
+import { resolveItem } from "./lib/items";
 import { classPlays, studentsOf } from "./lib/classwork";
 
 /** Cuántos retos activos muestra el inicio del docente. */
@@ -53,7 +54,7 @@ export const home = query({
       .sort((a, b) => b.createdAt - a.createdAt);
     const activeRetos = [];
     for (const a of open) {
-      const item = catalogItem(a.challengeId);
+      const item = await resolveItem(ctx, a.challengeId);
       const classroom = classrooms.find((c) => c._id === a.classroomId);
       if (!item || !classroom) continue;
       const summary = summarizeChallenge(

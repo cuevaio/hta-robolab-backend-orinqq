@@ -1,10 +1,10 @@
 import { ConvexError, v } from "convex/values";
-import { catalogItem } from "../domain/classroom/catalog";
 import { summarizeStudent } from "../domain/classroom/challengeStats";
 import { parseStudentList } from "../domain/classroom/studentName";
 import type { Id } from "./_generated/dataModel";
 import { type MutationCtx, mutation, query } from "./_generated/server";
 import { classroomLabel, requireOwnClassroom, requireTeacher } from "./lib/access";
+import { resolveItem } from "./lib/items";
 import { classPlays, studentsOf, visibleAssignments } from "./lib/classwork";
 import { removeLiveClassroom } from "./lib/liveCleanup";
 import { uniqueAccessCode, uniqueJoinCode } from "./lib/codes";
@@ -102,7 +102,7 @@ export const get = query({
       joinCode: classroom.joinCode ?? null,
       studentCount: students.length,
       retosTotal: assignedIds.length,
-      students: students.map((s) => {
+      students: await Promise.all(students.map(async (s) => {
         const progress = summarizeStudent(
           assignedIds,
           plays.filter((p) => p.studentId === s._id),
@@ -114,10 +114,10 @@ export const get = query({
           accessCode: s.accessCode ?? "",
           retosHechos: progress.retosHechos,
           retosTotal: progress.retosTotal,
-          lastChallengeTitle: progress.lastChallengeId === null ? null : (catalogItem(progress.lastChallengeId)?.title ?? progress.lastChallengeId),
+          lastChallengeTitle: progress.lastChallengeId === null ? null : ((await resolveItem(ctx, progress.lastChallengeId))?.title ?? progress.lastChallengeId),
           status: progress.status,
         };
-      }),
+      })),
     };
   },
 });

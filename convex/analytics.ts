@@ -6,7 +6,6 @@
  * demás baja.
  */
 import { v } from "convex/values";
-import { catalogItem } from "../domain/classroom/catalog";
 import { summarizeRetoProgress } from "../domain/classroom/retoProgress";
 import { type Best, bestOf } from "../domain/evaluation/ranking";
 import type { Id } from "./_generated/dataModel";
@@ -14,6 +13,7 @@ import { query } from "./_generated/server";
 import { classroomLabel, requireOwnClassroom, requireTeacher } from "./lib/access";
 import { finishedAttempts, groupByStudent } from "./lib/attempts";
 import { assignmentsOf, classPlays, studentsOf } from "./lib/classwork";
+import { resolveItem } from "./lib/items";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const average = (values: readonly number[]) =>
@@ -109,10 +109,11 @@ export const classRetosProgress = query({
     const assignments = (await assignmentsOf(ctx, classroomId)).filter((a) => a.visibility !== "draft");
     const plays = await classPlays(ctx, classroomId);
 
-    const refs = assignments.flatMap((a) => {
-      const item = catalogItem(a.challengeId);
-      return item ? [{ assignmentId: a._id as string, challengeId: a.challengeId, title: item.title, createdAt: a.createdAt }] : [];
-    });
+    const refs = [];
+    for (const a of assignments) {
+      const item = await resolveItem(ctx, a.challengeId);
+      if (item) refs.push({ assignmentId: a._id as string, challengeId: a.challengeId, title: item.title, createdAt: a.createdAt });
+    }
     const closed = new Set(assignments.filter((a) => a.closedAt !== undefined).map((a) => a._id as string));
     const progress = summarizeRetoProgress(
       refs,
