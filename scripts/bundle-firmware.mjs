@@ -16,7 +16,7 @@ export function bundleFirmware(entry) {
       return `// ---- ${local[1]} integrado ----\n${expand(resolve(dirname(absolute), local[1]))}`;
     }).join("\n");
   }
-  return "// RoboLab completo en un archivo: motores, ojos, luces, sonidos y Bluetooth Classic.\n" +
+  return "// RoboLab completo en un archivo: motores, ojos, luces, sonidos y USB Serial (BLE opcional).\n" +
     "// Se puede copiar como robi/robi.ino. No necesita cabeceras locales.\n" +
     "// Exportado con npm run firmware:bundle desde firmware/robolab_bluetooth.\n\n" + expand(entry);
 }

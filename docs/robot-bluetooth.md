@@ -1,32 +1,30 @@
-# Robot por Bluetooth Classic (SPP)
+# Robot por USB Serial (BLE opcional)
 
-La laptop envía directamente al ESP32 clásico por Bluetooth Classic. Convex
-sigue gestionando clases y resultados, pero no interviene en el enlace físico.
-El relé y el sketch wifi existentes siguen disponibles para instalaciones anteriores.
+Chrome envía las órdenes al ESP32 por el cable USB, mediante UART a **115200
+baudios**. Convex sigue gestionando clases y resultados, pero no interviene en
+el enlace físico. El firmware conserva motores, calibración, pines, ojos,
+sonidos y luces; USB Serial es el transporte predeterminado.
 
 ## Cargar el firmware
 
 1. Abrir **`firmware/robi/robi.ino`** en Arduino IDE. Es el código completo en
-   un solo archivo: configuración, motores, ojos, luces, sonidos y conexión.
-   Si lo copias, guardar el archivo como `robi.ino` dentro de una carpeta `robi`.
-2. Elegir **ESP32 Dev Module**, con Arduino-ESP32 **3.x** (compilado con 3.3.11).
-   Este sketch usa `BluetoothSerial`, no BLE; requiere un ESP32 clásico.
+   un archivo, sin cabeceras locales. Si se copia, guardar como `robi.ino` dentro
+   de una carpeta `robi`.
+2. Elegir **ESP32 Dev Module**, Arduino-ESP32 **3.x** (compilado con 3.3.11),
+   flash de 4 MB y particiones predeterminadas. `ROBOLAB_USAR_BLE` debe quedar
+   en **0**, como viene en el archivo.
 3. Instalar **Adafruit GFX Library**, **Adafruit SH110X**, **Adafruit SSD1306** y
    **FluxGarage RoboEyes** con sus dependencias desde el gestor de bibliotecas.
-4. Revisar los pines y tiempos al inicio del mismo archivo, cargar y abrir el
-   monitor a 115200 baudios. El dispositivo
-   se anuncia como **RoboLab**. Cambiar `ROBOT_NOMBRE` para distinguir varios robots.
+4. Revisar los pines y tiempos al inicio del archivo y cargar con un cable USB
+   que transmita datos. Cerrar el monitor serie antes de conectar desde Chrome.
 
-Se adaptó el `robi.ino` del equipo manteniendo su ejecutor, ojos, sonidos y LED.
-No hay credenciales de wifi ni claves de Convex en este firmware.
-No ejecuta una demostración al encender: queda esperando órdenes de la web.
+No necesita wifi, clave de Convex ni emparejamiento Bluetooth. Al encender queda
+esperando órdenes; no ejecuta una demostración.
 
-Para desarrollar se mantiene también la versión por módulos en
-`firmware/robolab_bluetooth/`. Su `.ino` necesita **todos los `.h` de esa carpeta**;
-copiar solo ese archivo provoca `Config.h: No such file or directory`.
-Después de cambiar un módulo, ejecutar `npm run firmware:bundle` para actualizar
-la versión completa. `npm run verify` comprueba que coincidan y prueba que un
-sketch exportado siga compilando al copiarlo sin sus cabeceras originales.
+Para desarrollar está la versión por módulos en `firmware/robolab_bluetooth/`
+(el nombre de la carpeta se conserva). Su `.ino` necesita todos los `.h` vecinos.
+Tras cambiar un módulo, `npm run firmware:bundle` actualiza el sketch completo;
+`npm run verify` comprueba el bundle y ejecuta las pruebas nativas.
 
 | Elemento | Configuración inicial |
 |---|---|
@@ -37,25 +35,26 @@ sketch exportado siga compilando al copiarlo sin sus cabeceras originales.
 | OLED SH1106 | SDA 21, SCL 19, dirección 0x3C o 0x3D |
 | LED / buzzer pasivo | GPIO 27 / 16 |
 
-**Límites del montaje:** admite A/D/Z, rechaza R antes del primer movimiento.
-D y Z son giros en arco, no sobre el centro: hay que calibrar los tiempos y
-el espacio físico. El dibujo del tablero no certifica el recorrido del robot.
+**Límites del montaje:** admite A/D/Z y rechaza R antes de moverse. D y Z son
+arcos; hay que calibrar tiempos y espacio. El tablero no certifica el recorrido.
 
-## Conectar desde la web
+## Conectar desde Chrome
 
-1. Emparejar **RoboLab** en los ajustes Bluetooth de la laptop.
-2. Abrir la web por HTTPS o localhost en Chrome de escritorio (117 o superior).
-3. Abrir **Robot → Bluetooth → Elegir robot** y seleccionar el puerto del robot.
-   Según el sistema puede aparecer como RoboLab, puerto Bluetooth o puerto COM.
-4. La web envía HELLO y espera la identidad del firmware antes de mostrar conectado.
-5. **Ejecutar** envía al robot vinculado; **Enviar al robot** permite hacerlo desde
-   la hoja. **Parar robot** cancela el envío en curso.
+1. Conectar el ESP32 por USB y cerrar Arduino Serial Monitor u otro programa
+   que tenga ocupado el puerto.
+2. Abrir la web por HTTPS o localhost en **Chrome de escritorio**.
+3. Abrir **Robot → USB → Elegir robot** y seleccionar el ESP32 o su puente
+   USB serie (por ejemplo CH340, CP210x o USB Serial).
+4. Esperar la respuesta `ROBO/1 ADZ ARC` antes de ejecutar. Si abrir el puerto
+   reinicia la placa, la web reintenta el saludo durante su arranque.
+5. **Parar robot** envía STOP. Desconectar la web impide nuevos envíos.
 
-La presencia de `navigator.serial` se comprueba en tiempo de ejecución; si el
-navegador no lo expone, la web avisa y ofrece wifi. Web Bluetooth corresponde a
-BLE; para Classic se usa [Web Serial sobre RFCOMM/SPP](https://developer.chrome.com/blog/serial-over-bluetooth).
-El selector del navegador requiere una acción del usuario y solo muestra puertos
-disponibles o emparejados. No se necesita el código wifi de seis caracteres.
+La web comprueba `navigator.serial` y requiere un clic para elegir el puerto.
+En Linux, el usuario debe tener permisos sobre el dispositivo serie (habitualmente
+el grupo `dialout`); si se acaba de agregar, cerrar sesión y entrar de nuevo.
+La conexión USB por Web Serial está orientada a Chrome de escritorio; Android
+y Chrome para iOS no son el destino de este flujo.
+Ver [guía oficial de Chrome](https://developer.chrome.com/docs/capabilities/serial).
 
 ## Contrato de línea, versión 1
 
@@ -81,27 +80,74 @@ Se responde `ERR:BUSY` para otro programa durante la ejecución. Otros errores:
 `BAD_CHAR`, `TOO_LONG`, `REVERSE_UNSUPPORTED`, `TURN_UNSUPPORTED`, `TIMING_INVALID`,
 `DURATION_LIMIT`, `STOPPED`, `DISCONNECTED`, `HEARTBEAT`, `TIMEOUT`, `NETWORK` y `FRAME`.
 
-La web envía PING cada 1000 ms. Si pasan 3500 ms sin HELLO/PING o se pierde el
-cliente SPP, se cancela y apagan los motores. También se detienen al enviar STOP
-o P en el monitor, y al superar el tiempo máximo (100 s). Reconectar no reanuda
-movimientos. El envío por radio corre en otra tarea y una cola limitada para no
-bloquear el reloj de los motores. Los tiempos son control por duración, sin
-sensores de posición ni verificación física de que el motor se movió.
+La web envía PING cada 1000 ms. Si pasan 3500 ms sin HELLO/PING, se cancela
+la ejecución y se apagan los motores. También se detienen con STOP y al superar
+el tiempo máximo (100 s). Los tiempos son control por duración, sin sensores de
+posición ni verificación física de que el motor se movió.
+
+En USB, cada línea **HELLO** inicia una sesión nueva con salidas apagadas e ids
+vacíos. Al abrir el puerto, Chrome escribe `\x00\nSTOP\nHELLO\n`: NUL invalida
+una trama parcial antes de cerrarla con LF; STOP cancela cualquier programa
+antes del saludo. Solo se
+reintenta ese saludo mientras se conecta; nunca se reenvía RUN automáticamente.
+
+El puente CH340 no informa al ESP32 de que se cerró el puerto o desconectó el
+USB; por eso sigue siendo obligatorio el latido de 3500 ms. Reconectar exige
+HELLO y no reanuda programas. Todos los caracteres de Serial van al parser: la
+letra P de PING no se interpreta como una parada. Para parar desde el monitor,
+enviar la línea completa **STOP** con LF.
+
+Las respuestas salen por una tarea y una cola acotada, para que una escritura
+lenta no bloquee el reloj de motores. Un HELLO descarta respuestas pendientes
+de la sesión anterior. El parser de UART también tiene tamaño fijo y rechaza
+líneas que superen el límite del protocolo.
+
+## BLE opcional para experimentación
+
+La variante BLE se conserva detrás de `ROBOLAB_USAR_BLE=1`; no está habilitada
+en el binario USB predeterminado. Usa la biblioteca BLE Bluedroid incluida en
+Arduino-ESP32 3.3.11, nombre **RoboLab**, sin exigir bonding ni cifrado. No hay que
+emparejar en ajustes del sistema. Requiere un cliente Web Bluetooth o BLE UART;
+el flujo actual de la web usa USB.
+
+| Elemento | UUID / propiedad |
+|---|---|
+| Servicio anunciado | `6e400001-b5a3-f393-e0a9-e50e24dcca9e` |
+| RX (cliente → robot) | `6e400002-b5a3-f393-e0a9-e50e24dcca9e`, WRITE con respuesta |
+| TX (robot → cliente) | `6e400003-b5a3-f393-e0a9-e50e24dcca9e`, NOTIFY y CCCD 0x2902 |
+
+Suscribirse a TX antes de HELLO. Escrituras y notificaciones usan fragmentos de
+hasta 20 bytes; el LF completa la línea. RX encola como máximo 512 bytes y el
+parser corre en loop(); las generaciones aíslan conexiones, fragmentos y
+respuestas. Al desconectar se anuncia de nuevo después del último envío viejo.
+
+Web Bluetooth está disponible en Chrome para Android, Windows, macOS y
+ChromeOS. En Ubuntu/Linux requiere
+`chrome://flags/#enable-experimental-web-platform-features`, reiniciar Chrome y
+Bluetooth/BlueZ; su soporte es experimental. En las pruebas físicas iniciales
+se detectó el anuncio NUS, pero el enlace Linux se interrumpió durante el
+descubrimiento de servicios; por eso se conserva como opción de experimentación.
+Ver [Web Bluetooth en Chrome](https://developer.chrome.com/docs/capabilities/bluetooth).
 
 ## Verificación y aceptación
 
-`npm run verify` incluye las pruebas TypeScript y las de C++ del parser y
-ejecutor, sin hardware. Estas últimas necesitan `g++` (o `CXX` apuntando a un
-compilador C++17). En Windows puede usarse MSYS2/WSL.
+`npm run verify` incluye pruebas TypeScript, C++ del ejecutor/parser, UART
+(HELLO nuevo, ids, fragmentos, PING y watchdog) y BLE. Requiere `g++` o un
+compilador C++17 indicado en `CXX`; en Windows puede usarse MSYS2/WSL.
 
-Compilar desde terminal, con las bibliotecas instaladas:
+Compilar USB desde terminal, con las bibliotecas instaladas:
 
 ```bash
-arduino-cli compile --fqbn esp32:esp32:esp32 firmware/robi
+arduino-cli compile --fqbn esp32:esp32:esp32 --jobs 2 firmware/robolab_bluetooth
+arduino-cli compile --fqbn esp32:esp32:esp32 --jobs 2 firmware/robi
 ```
 
-Para aceptar en placa: verificar A/D/Z y ojos/sonidos; comprobar que AR se
-rechaza sin mover; enviar dos programas y comprobar BUSY; probar Parar robot,
-apagar Bluetooth o cerrar la pestaña y confirmar que se detiene. Calibrar
-casilla y ambos arcos con el robot apoyado. La compilación y las pruebas sin
-placa no sustituyen esa comprobación física.
+Para compilar la variante BLE opcional:
+
+```bash
+arduino-cli compile --fqbn esp32:esp32:esp32 --jobs 2 --build-property 'compiler.cpp.extra_flags=-DROBOLAB_USAR_BLE=1' firmware/robi
+```
+
+Antes de usar con niños, probar HELLO, PING, STOP, cierre/reapertura y pérdida de
+latidos. Verificar A/D/Z y ojos/sonidos en placa y calibrar casilla y arcos.
+Las pruebas nativas y compilar no sustituyen la comprobación física.
