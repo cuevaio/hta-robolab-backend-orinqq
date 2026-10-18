@@ -7,9 +7,20 @@ import { executeMission } from "../domain/mission/engine";
 import { generateActivity } from "./orchestrator";
 import { buildPedagogy, generatePedagogicalActivity, savePedagogicalMission } from "./pedagogy";
 import { parseActivityRequest } from "./request";
+import { realEnergyMission } from "../domain/mission/realEnergyFixture";
 const request = { objective: "Comparar sumas de costos y planificar recorridos.", grades: [3], family: "ROUTE_COMPARISON" };
 
 describe("mecánicas pedagógicas verificables", () => {
+  it("acepta A1 en el orquestador y certifica su sidecar sin reparación ni fallback", async () => {
+    const propose = vi.fn().mockResolvedValue(realEnergyMission);
+    const [entry] = await generatePedagogicalActivity({
+      objective: realEnergyMission.objective, grades: [3], family: "ENERGY_OPTIMIZATION", difficulty: "balanced",
+      constraints: { rows: 4, cols: 5, checkpoints: 2, minObstacles: 1, minRough: 1, plainCost: 1, roughCost: 3, maxEnergy: 18 },
+    }, { name: "groq", model: "fake", propose });
+    expect(propose).toHaveBeenCalledTimes(1);
+    expect(entry!.proposal).toMatchObject({ origin: "ai_generated", calls: 1, repairs: 0, fallbackSatisfiesConstraints: true });
+    expect(entry!.pedagogy).toMatchObject({ verification: "verified", evidence: { minimumEnergy: 11, budget: 18 } });
+  });
   it.each(Object.keys(MECHANICS) as MissionFamily[])("certifica %s con testigos reproducibles", family => {
     const m = mechanicFixture(family);
     const v = validateMechanic(m, family);
