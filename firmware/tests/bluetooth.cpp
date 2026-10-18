@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include "../robolab_bluetooth/Protocol.h"
+#include "../robolab_bluetooth/BleTransport.h"
 
 struct Reply { std::string id, value; };
 static void capture(void* context, const char* id, const char* reply) {
@@ -11,7 +12,85 @@ static void line(robolab::RobotSession& session, const std::string& text, uint32
   for (char c : text) session.feed(c, now);
 }
 
+// La característica ya contiene el valor confirmado tanto para WRITE corto
+// como EXEC_WRITE. El segundo evento no contiene puntero/longitud de payload.
+struct CommittedCharacteristic {
+  std::string value;
+  const char* getData() { return value.data(); }
+  size_t getLength() const { return value.size(); }
+};
+
+static void testBleTransport() {
+  robolab::BleTransport radio;
+  char byte = 0;
+  radio.connect(7);
+  const auto first = radio.snapshot();
+  assert(first.connected && !first.failed);
+  assert(radio.receive(7, "HEL", 3));
+  assert(radio.pop(first.epoch, byte) && byte == 'H');
+  radio.disconnect(7);
+  radio.connect(7); // El stack puede reutilizar conn_id antes del siguiente loop.
+  const auto second = radio.snapshot();
+  assert(second.connected && second.epoch != first.epoch);
+  assert(!radio.current(first.epoch)); // Nunca notificar un STATUS de la conexion anterior.
+  assert(!radio.pop(first.epoch, byte));
+  assert(!radio.pop(second.epoch, byte)); // Descarta incluso el fragmento pendiente "EL".
+  assert(!radio.receive(8, "RUN old A\n", 10)); // Otro cliente no inyecta bytes.
+  assert(radio.receive(7, "LO\n", 3));
+  std::string received;
+  while (radio.pop(second.epoch, byte)) received += byte;
+  assert(received == "LO\n");
+  radio.fail(first.epoch); // Un fallo de TX viejo no desconecta al cliente nuevo.
+  assert(radio.current(second.epoch));
+
+  const robolab::Config config = {1000, 1000, 1000, 100, 100000, true};
+  std::vector<Reply> replies;
+  robolab::RobotSession robot(config, capture, &replies);
+  line(robot, "HELLO\nRUN old A\n");
+  robot.tick(250, true);
+  assert(robot.motion().output().left && robot.motion().output().right);
+  // Aunque connected sigue en true, el cambio de epoch obliga al loop a abortar.
+  radio.disconnect(7);
+  radio.connect(7);
+  assert(radio.snapshot().epoch != second.epoch);
+  robot.tick(260, false);
+  robot.reset();
+  assert(!robot.motion().output().left && !robot.motion().output().right);
+  line(robot, "RUN no-hello A\n", 270);
+  assert(!robot.motion().active());
+  line(robot, "HELLO\nRUN fragment ", 270);
+  radio.disconnect(7);
+  robot.reset();
+  radio.connect(7);
+  const auto third = radio.snapshot();
+  assert(radio.receive(7, "A\n", 2));
+  while (radio.pop(third.epoch, byte)) robot.feed(byte, 280);
+  assert(!robot.motion().active()); // El LF nuevo no completa un RUN viejo.
+
+  // La cola RX acotada falla cerrada: nunca ejecuta un prefijo truncado.
+  const std::string flood(robolab::BleTransport::RX_CAPACITY, 'A');
+  assert(radio.receive(7, flood.data(), flood.size()));
+  assert(!radio.receive(7, "\n", 1));
+  assert(radio.snapshot().failed && !radio.current(third.epoch));
+  assert(!radio.pop(third.epoch, byte));
+  radio.disconnect(7);
+  radio.connect(7);
+  const auto recovered = radio.snapshot();
+  assert(!recovered.failed && radio.current(recovered.epoch));
+  assert(radio.receive(7, "HELLO\n", 6));
+  received.clear();
+  while (radio.pop(recovered.epoch, byte)) received += byte;
+  assert(received == "HELLO\n");
+  CommittedCharacteristic confirmed{"HELLO\nRUN committed A\n"};
+  assert(radio.receiveCharacteristic(7, confirmed));
+  robot.reset();
+  while (radio.pop(recovered.epoch, byte)) robot.feed(byte, 300);
+  assert(robot.motion().active());
+  assert(replies.back().id == "committed" && replies.back().value == "RUN");
+}
+
 int main() {
+  testBleTransport();
   const robolab::Config config = {1000, 1000, 1000, 100, 100000, true};
   std::vector<Reply> replies;
   robolab::RobotSession session(config, capture, &replies);

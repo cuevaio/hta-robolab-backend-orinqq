@@ -19,9 +19,9 @@ Educación Escolar). Este repo tiene todo lo que no es pantalla:
 - `firmware/` y [docs/robot-wifi.md](docs/robot-wifi.md): el ESP32 que recibe el
   programa por wifi y el contrato que cumple.
 
-También está disponible el enlace directo por **Bluetooth Classic SPP** para
+También está disponible el enlace directo por **Bluetooth BLE (UART)** para
 ESP32 clásico, con el firmware de motores, ojos y sonidos del equipo. La guía
-de carga, emparejamiento y capacidades está en [docs/robot-bluetooth.md](docs/robot-bluetooth.md).
+de carga, conexión desde Chrome y capacidades está en [docs/robot-bluetooth.md](docs/robot-bluetooth.md).
 El sketch listo para copiar al Arduino IDE es
 [`firmware/robi/robi.ino`](firmware/robi/robi.ino): incluye en un solo archivo
 la configuración, los motores, ojos, luces, sonidos y el receptor de órdenes.
