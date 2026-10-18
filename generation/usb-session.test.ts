@@ -16,6 +16,11 @@ async function hello(s: ReturnType<typeof setup>) {
   await vi.waitFor(() => expect(s.messages).toContainEqual(expect.objectContaining({ id: "hello", ok: true })));
 }
 describe("sesión USB de generación", () => {
+  it("tolera repetir la identificación mientras comprueba el modelo", async () => {
+    const s = setup(); s.session.receive(frame("hello", "hello") + frame("hello", "hello"));
+    await vi.waitFor(() => expect(s.messages).toContainEqual(expect.objectContaining({ id: "hello", ok: true })));
+    expect(s.messages.some(m => m.ok === false)).toBe(false); s.session.close();
+  });
   it("identifica la Jetson antes de aceptar solicitudes y ensambla fragmentos", async () => {
     const s = setup();
     s.session.receive(frame("early", "generate", request));

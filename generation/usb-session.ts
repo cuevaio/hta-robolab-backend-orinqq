@@ -13,7 +13,8 @@ export function createUsbSession(options: {
   onEvent?: (event: LocalGenerationEvent) => void; now?: () => number;
 }) {
   const now = options.now ?? Date.now;
-  let closed = false, identified = false, checking = false, dropping = false;
+  let closed = false, identified = false, dropping = false;
+  let checkingId: string | null = null;
   let buffer = "", lastSeen = now();
   let active: { id: string; controller: AbortController } | null = null;
   function close() { closed = true; active?.controller.abort(); buffer = ""; }
@@ -53,12 +54,12 @@ export function createUsbSession(options: {
     if (m.v !== JETSON_USB_VERSION) { reply(id, null, "PROTOCOL_VERSION"); return; }
     lastSeen = now();
     if (m.method === "hello") {
-      if (checking) { reply(id, null, "BUSY"); return; }
-      checking = true;
+      if (checkingId !== null) { if (checkingId !== id) reply(id, null, "BUSY"); return; }
+      checkingId = id;
       void options.checkModel().catch(() => false).then(ready => {
         identified = ready;
         reply(id, { device: JETSON_USB_DEVICE, protocol: JETSON_USB_VERSION, provider: options.provider.name, model: options.provider.model, ready, busy: !!active });
-      }).finally(() => { checking = false; });
+      }).finally(() => { checkingId = null; });
       return;
     }
     if (!identified) { reply(id, null, "NOT_READY"); return; }
