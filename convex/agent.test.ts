@@ -1,6 +1,8 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { missionFixtures } from "../domain/mission/fixtures";
+import { realEnergyMission } from "../domain/mission/realEnergyFixture";
+import { findSimpleAlternative } from "../domain/mission/alternative";
 import { api } from "./_generated/api";
 import { AGENT_MAX_PER_DAY, AGENT_MAX_PER_HOUR } from "./agent";
 import schema from "./schema";
@@ -73,6 +75,27 @@ describe("asistente: proponer misiones", () => {
     expect(fetchMock.mock.calls[0]![0]).toBe("https://api.anthropic.com/v1/messages");
     const headers = fetchMock.mock.calls[0]![1]!.headers as Record<string, string>;
     expect(headers["x-api-key"]).toBe("clave-ficticia");
+  });
+
+  it("cada propuesta trae alternativeCost: lo que cuesta otra ruta simple que excede el presupuesto, o null", async () => {
+    const { teacher } = await withTeacher();
+    // Caso real A1: existe una ruta simple más cara que el presupuesto.
+    fetchMock.mockImplementation(async () => toolReply(realEnergyMission));
+    const found = await teacher.action(api.agent.generate, { objective: OBJETIVO, grades: [3] });
+    if (found.status !== "ok") throw new Error("se esperaba ok");
+    const alternative = findSimpleAlternative(realEnergyMission);
+    expect(alternative.status).toBe("FOUND");
+    if (alternative.status !== "FOUND") return;
+    expect(found.proposals[0]!.alternativeCost).toBe(alternative.cost);
+    expect(found.proposals[0]!.alternativeCost).toBeGreaterThan(realEnergyMission.energyBudget);
+    // Sin ruta alternativa (o con límite agotado) el campo existe y es null, y el resto del contrato no cambia.
+    fetchMock.mockImplementation(async () => toolReply(FIXTURE(2)));
+    const none = await teacher.action(api.agent.generate, { objective: OBJETIVO, grades: [2] });
+    if (none.status !== "ok") throw new Error("se esperaba ok");
+    expect(none.proposals[0]).toHaveProperty("alternativeCost");
+    const expected = findSimpleAlternative(FIXTURE(2));
+    expect(none.proposals[0]!.alternativeCost).toBe(expected.status === "FOUND" ? expected.cost : null);
+    expect(none.proposals[0]).toMatchObject({ grade: 2, metrics: { solutionStatus: "SOLVED" } });
   });
 
   it("con la clave de Gemini llama a Gemini (clave en cabecera, no en la URL) y devuelve la misma forma de propuesta", async () => {

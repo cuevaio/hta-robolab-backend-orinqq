@@ -10,6 +10,7 @@
  */
 import { ConvexError, v } from "convex/values";
 import { ContractError } from "../domain/mission/validation";
+import { findSimpleAlternative } from "../domain/mission/alternative";
 import { parseCustomMission } from "../domain/mission/custom";
 import type { Mission } from "../domain/mission/contracts";
 import { type GenerationErrorCode } from "../generation/contracts";
@@ -66,7 +67,19 @@ export type Proposal = {
   readonly grade: 2 | 3 | 4;
   readonly mission: Mission;
   readonly metrics: ReturnType<typeof evaluate_difficulty>;
+  /** Energía de otra ruta simple que excede el presupuesto; null si no existe o la búsqueda llegó a su límite. */
+  readonly alternativeCost: number | null;
 };
+
+/** La búsqueda tiene su propio tope de estados (ALTERNATIVE_SEARCH_LIMIT): no puede colgar la acción. */
+function alternativeCostOf(mission: Mission): number | null {
+  try {
+    const found = findSimpleAlternative(mission);
+    return found.status === "FOUND" ? found.cost : null;
+  } catch {
+    return null;
+  }
+}
 export type GenerateResult =
   | { readonly status: "not_configured" }
   | {
@@ -101,7 +114,7 @@ export const generate = action({
     return {
       status: "ok",
       // Una plantilla de respaldo no es una propuesta del asistente: no se ofrece.
-      proposals: results.filter((r) => r.origin === "ai_generated").map((r) => ({ grade: r.mission.grade, mission: r.mission, metrics: r.metrics })),
+      proposals: results.filter((r) => r.origin === "ai_generated").map((r) => ({ grade: r.mission.grade, mission: r.mission, metrics: r.metrics, alternativeCost: alternativeCostOf(r.mission) })),
       failed: results
         .filter((r) => r.origin !== "ai_generated")
         .map((r) => ({ grade: r.mission.grade, code: r.errorCode ?? ("PROVIDER_UNAVAILABLE" as const) })),
