@@ -118,8 +118,8 @@ limpieza en cascada.
 ### Robot por wifi y simulador
 
 ```bash
-npx convex run robot:register '{"name":"Wayra"}'          # devuelve el código y la clave del firmware
-npx convex run robot:rename '{"from":"Kusi","to":"Wayra"}' # cambia el nombre que muestra la web
+npx convex run robot:register '{"name":"Robi"}'          # devuelve el código y la clave del firmware
+npx convex run robot:rename '{"from":"Kusi","to":"Robi"}' # cambia el nombre que muestra la web
 npx convex run robot:list                                 # robots, código vigente y si están conectados
 npm run robot:simulador -- --clave <clave> [--servidor https://<despliegue>.convex.site]
 ```

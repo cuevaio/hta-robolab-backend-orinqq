@@ -45,7 +45,7 @@ export function checkProgram(challenge: Challenge, program: Program): { simulati
 
   const { outcome } = simulation;
   if (outcome.kind === "EMPTY") {
-    return { simulation, result: { ok: false, reason: "EMPTY", message: "Tu programa está vacío. Toca los bloques para darle órdenes a Wayra." } };
+    return { simulation, result: { ok: false, reason: "EMPTY", message: "Tu programa está vacío. Toca los bloques para darle órdenes a Robi." } };
   }
   if (outcome.kind === "OFF_PATH") {
     return {
@@ -54,12 +54,12 @@ export function checkProgram(challenge: Challenge, program: Program): { simulati
         ok: false,
         reason: "OFF_PATH",
         step: outcome.failedStep,
-        message: `¡Uy! Wayra se salió del camino en el paso ${outcome.failedStep}, al ${COMMAND_NAME[outcome.command]}.`,
+        message: `¡Uy! Robi se salió del camino en el paso ${outcome.failedStep}, al ${COMMAND_NAME[outcome.command]}.`,
       },
     };
   }
   if (outcome.kind === "INCOMPLETE") {
-    return { simulation, result: { ok: false, reason: "INCOMPLETE", message: "¡Casi! Wayra se quedó antes de la estrella. Agrega más bloques." } };
+    return { simulation, result: { ok: false, reason: "INCOMPLETE", message: "¡Casi! Robi se quedó antes de la estrella. Agrega más bloques." } };
   }
 
   if (challenge.kind === "stops") {
@@ -71,7 +71,7 @@ export function checkProgram(challenge: Challenge, program: Program): { simulati
         result: {
           ok: false,
           reason: "MISSED_STOPS",
-          message: `Wayra llegó a la estrella, pero le faltó pasar por ${missing === 1 ? "una bandera" : `${missing} banderas`}.`,
+          message: `Robi llegó a la estrella, pero le faltó pasar por ${missing === 1 ? "una bandera" : `${missing} banderas`}.`,
         },
       };
     }
@@ -89,7 +89,7 @@ export function checkProgram(challenge: Challenge, program: Program): { simulati
       };
     }
   }
-  return { simulation, result: { ok: true, message: "¡Lo lograste! Wayra llegó a la estrella." } };
+  return { simulation, result: { ok: true, message: "¡Lo lograste! Robi llegó a la estrella." } };
 }
 
 /** Revisa la casilla que tocó el alumno en un reto de predecir. */
@@ -97,6 +97,6 @@ export function checkPrediction(challenge: Challenge, picked: Cell): CheckResult
   if (challenge.kind !== "predict") throw new Error(`El reto ${challenge.id} no es de predecir.`);
   const answer = finalCell(challenge, challenge.given);
   return answer.row === picked.row && answer.col === picked.col
-    ? { ok: true, message: "¡Adivinaste! Wayra terminó justo ahí." }
-    : { ok: false, reason: "WRONG_CELL", message: "Wayra terminó en otra casilla. Sigue los bloques con tu dedo y vuelve a intentarlo." };
+    ? { ok: true, message: "¡Adivinaste! Robi terminó justo ahí." }
+    : { ok: false, reason: "WRONG_CELL", message: "Robi terminó en otra casilla. Sigue los bloques con tu dedo y vuelve a intentarlo." };
 }

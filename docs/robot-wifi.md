@@ -43,7 +43,7 @@ Dirección base: la de las rutas HTTP del despliegue, `https://<despliegue>.conv
 | Petición | Respuesta |
 |---|---|
 | `POST /robot/web/enviar` con JSON `{"codigo":"7NFEWV","secuencia":"AADZAA","id":"<uuid>"}` | `200 {"estado":"EN_COLA","id":…}` · `400 {"estado":"ERR:BAD_CHAR"}` o `ERR:TOO_LONG` · `409 {"estado":"ERR:BUSY"}` · `404 ERR:NO_ROBOT` · `403 ERR:CODE_EXPIRED` |
-| `GET /robot/web/estado?codigo=7NFEWV&id=<uuid>` | `200 {"estado":"EN_COLA"\|"ENTREGADO"\|"OK"\|"RUN"\|"DONE"\|"ERR:<código>"\|"VENCIDO","conectado":true,"robot":"Wayra","secuencia":"AADZAA"}` |
+| `GET /robot/web/estado?codigo=7NFEWV&id=<uuid>` | `200 {"estado":"EN_COLA"\|"ENTREGADO"\|"OK"\|"RUN"\|"DONE"\|"ERR:<código>"\|"VENCIDO","conectado":true,"robot":"Robi","secuencia":"AADZAA"}` |
 
 `conectado` es `true` si el robot consultó en los últimos 10 s. La web consulta
 el estado cada ~500 ms después de enviar (no hay WebSocket: el relé no reenvía,
@@ -77,7 +77,7 @@ automática comprueba que el giro en pantalla coincide con la letra.
 ## Registrar el robot
 
 ```bash
-npx convex run robot:register '{"name":"Wayra"}'
+npx convex run robot:register '{"name":"Robi"}'
 ```
 
 Devuelve `code` (el primer código de emparejamiento) y `key` (la clave del

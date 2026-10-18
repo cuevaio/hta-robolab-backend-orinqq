@@ -225,7 +225,7 @@ const CORE_MISSIONS: readonly Mission[] = [
     title: "Ruta de materiales",
     topic: "tecnologia",
     emoji: "📦",
-    story: "Wayra reparte materiales en la escuela. Pasa por las estaciones y llega a la meta sin gastar toda la energía.",
+    story: "Robi reparte materiales en la escuela. Pasa por las estaciones y llega a la meta sin gastar toda la energía.",
     hints: [
       "Cada paso gasta 1 de energía y el terreno amarillo gasta 3.",
       "Las estaciones están en dos esquinas: planifica en qué orden las visitas.",
@@ -237,7 +237,7 @@ const CORE_MISSIONS: readonly Mission[] = [
     title: "Muestras del huerto",
     topic: "ciencia",
     emoji: "🌱",
-    story: "Wayra recoge una muestra de tierra en A y una de agua en B para el experimento y las lleva al laboratorio, en la meta.",
+    story: "Robi recoge una muestra de tierra en A y una de agua en B para el experimento y las lleva al laboratorio, en la meta.",
     hints: [
       "Hay un muro arriba: no intentes cruzar por la fila de inicio.",
       "La estación A está en el borde izquierdo; la B, en el borde derecho.",
@@ -249,7 +249,7 @@ const CORE_MISSIONS: readonly Mission[] = [
     title: "Piezas para la obra",
     topic: "ingenieria",
     emoji: "🏗️",
-    story: "Wayra lleva piezas a dos puntos de la obra. Evita las zonas en construcción y el barro, que cuesta el triple.",
+    story: "Robi lleva piezas a dos puntos de la obra. Evita las zonas en construcción y el barro, que cuesta el triple.",
     hints: [
       "El muro del medio solo se cruza por los extremos.",
       "Recoge A arriba a la derecha antes de bajar.",
@@ -262,7 +262,7 @@ const CORE_MISSIONS: readonly Mission[] = [
     topic: "artes",
     emoji: "🎨",
     swap: true,
-    story: "Wayra recoge pintura en A y pinceles en B antes de llegar al mural de la escuela, en la meta.",
+    story: "Robi recoge pintura en A y pinceles en B antes de llegar al mural de la escuela, en la meta.",
     hints: [
       "Mira dónde está cada estación antes de poner la primera flecha.",
       "El terreno amarillo gasta 3: rodéalo cuando puedas.",
@@ -275,7 +275,7 @@ const CORE_MISSIONS: readonly Mission[] = [
     topic: "matematicas",
     emoji: "📚",
     swap: true,
-    story: "Wayra devuelve libros en dos estantes (las estaciones). Suma la energía de cada paso para no pasarte del presupuesto.",
+    story: "Robi devuelve libros en dos estantes (las estaciones). Suma la energía de cada paso para no pasarte del presupuesto.",
     hints: [
       "Antes de ejecutar, cuenta cuánta energía gastará tu ruta.",
       "Un paso normal cuesta 1; una casilla amarilla, 3.",
