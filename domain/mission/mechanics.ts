@@ -1,5 +1,6 @@
 import type { Mission, Program, ValidationIssue } from "./contracts";
 import { executeMission, solveMission } from "./engine";
+import { findSimpleAlternative } from "./alternative";
 import { parseMission, positionKey, samePosition } from "./validation";
 
 export const MECHANICS = {
@@ -64,41 +65,21 @@ export function validateMechanic(input: unknown, family: MissionFamily): Mechani
       return failure("Las estaciones deben exigir un desvío con mayor costo que la ruta sin entregas.");
     evidence.checkpointBypass = { program: bypass.program, cost: bypass.cost, outcome: trace.outcome };
   }
-  // Block each interior cell of the certified path, solve a counterfactual map,
-  // then replay the witness on the ORIGINAL map. No claim rests on the altered map.
-  const path = executeMission(m, solved.program).steps.map(s => s.state.position);
-  const candidates = [...new Set(path.map(positionKey))].filter(key =>
-    key !== positionKey(m.start) && key !== positionKey(m.goal) &&
-    !m.checkpoints.some(c => positionKey(c.position) === key));
-  let limited = false;
-  for (const key of candidates) {
-    const alternate = solveMission({ ...m, energyBudget: 10000, grid: {
-      ...m.grid, cells: m.grid.cells.map(c => positionKey(c.position) === key ? { ...c, obstacle: true } : c),
-    } });
-    if (alternate.status === "SEARCH_LIMIT") limited = true;
-    if (alternate.status !== "SOLVED") continue;
-    const relaxed = { ...m, energyBudget: 10000 };
-    const trace = executeMission(relaxed, alternate.program);
-    if (trace.outcome !== "SUCCESS" || trace.energyUsed <= m.energyBudget) continue;
-    if (!simpleRoute(relaxed, alternate.program) || !simpleRoute(m, solved.program)) continue;
-    if (rules.costTradeoff) {
-      // Same commands on uniform-cost cells must reverse or erase the preference:
-      // proves costs on relevant paths matter, not decorative terrain elsewhere.
-      const uniform = { ...relaxed, grid: { ...m.grid, cells: m.grid.cells.map(c => ({ ...c, cost: 1 })) } };
-      const cheapSteps = executeMission(uniform, solved.program).energyUsed;
-      const expensiveSteps = executeMission(uniform, alternate.program).energyUsed;
-      if (expensiveSteps > cheapSteps) continue;
-    }
+  // Se conserva la política: la solución de referencia también debe ser simple.
+  if (!simpleRoute(m, solved.program)) return failure("La solución de referencia no es una ruta simple.");
+  const optimalMoves = executeMission(m, solved.program).steps.filter(step => step.cost > 0).length;
+  const alternate = findSimpleAlternative(m, rules.costTradeoff ? { maxMoves: optimalMoves } : {});
+  if (alternate.status === "FOUND") {
+    // La búsqueda ya reprodujo ambos presupuestos sobre las celdas originales.
     evidence.alternative = {
-      program: alternate.program, cost: trace.energyUsed,
+      program: alternate.program, cost: alternate.cost,
       outcome: executeMission(m, alternate.program).outcome,
     };
-    break;
   }
   if (!evidence.alternative) return failure(
-    "No se certificaron rutas simples alternativas de costo distinto con presupuesto vinculante" +
+    (alternate.status === "SEARCH_LIMIT" ? "Se agotó el límite buscando rutas simples alternativas; no se demuestra su ausencia" : "No existen rutas simples alternativas de costo distinto con presupuesto vinculante") +
     (family === "ROUTE_COMPARISON" ? " y una preferencia determinada por los costos de celda." : "."),
-    limited ? "SEARCH_LIMIT" : "SCHEMA_INVALID",
+    alternate.status === "SEARCH_LIMIT" ? "SEARCH_LIMIT" : "SCHEMA_INVALID",
   );
   return { ok: true, evidence };
 }
