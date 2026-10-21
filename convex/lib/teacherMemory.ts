@@ -115,12 +115,14 @@ async function deleteReceipt(response: Response): Promise<void> {
 }
 
 function toStored(raw: unknown, subject: string): StoredPreference | null {
-  if (!raw || typeof raw !== "object") return null;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new MemoryUnavailable();
   const m = raw as Record<string, unknown>;
+  if (m.user_id !== undefined && typeof m.user_id !== "string") throw new MemoryUnavailable();
   if (m.user_id !== undefined && m.user_id !== subject) return null;
-  if (typeof m.id !== "string" || typeof m.content !== "string") return null;
-  // El sujeto solo lo escribe RoboLab; igual se descarta lo que venga de otra fuente.
+  // Explicitly foreign rows are excluded; malformed own rows cannot prove absence.
+  if (m.source_site !== undefined && typeof m.source_site !== "string") throw new MemoryUnavailable();
   if (m.source_site !== undefined && m.source_site !== MEMORY_SOURCE) return null;
+  if (typeof m.id !== "string" || m.id === "" || typeof m.content !== "string" || m.content === "") throw new MemoryUnavailable();
   const savedAt = typeof m.created_at === "string" ? Date.parse(m.created_at) : NaN;
   return { id: m.id, text: m.content, savedAt: Number.isFinite(savedAt) ? savedAt : null };
 }

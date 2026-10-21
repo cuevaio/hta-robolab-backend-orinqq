@@ -144,6 +144,14 @@ describe("nota de preferencias del docente", () => {
     }
   });
 
+  it("una fila propia malformada no confirma que la memoria esté vacía", async () => {
+    for (const row of [null, {}, { id: "own", content: TEXT, source_site: null }, { id: "own", content: TEXT, user_id: 12 }, { user_id: SUBJECT, id: "own", content: 12, source_site: MEMORY_SOURCE }]) {
+      const memory = fakeMemory({ list: () => Response.json({ memories: [row] }) });
+      await expect(removePreference(CONFIG, "docente1", memory.fetchImpl)).rejects.toBeInstanceOf(MemoryUnavailable);
+      expect(memory.fetchImpl.mock.calls.some(([, init]) => init.method === "DELETE")).toBe(false);
+    }
+  });
+
   it("descarta filas de otro docente aunque el proveedor ignore el filtro", async () => {
     const memory = fakeMemory();
     memory.rows.push({ user_id: teacherSubject("otro-docente"), id: "other", content: "nota privada", created_at: "2026-10-01T00:00:00Z", source_site: MEMORY_SOURCE });
