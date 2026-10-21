@@ -34,6 +34,7 @@ import type * as lib_mailPolicy from "../lib/mailPolicy.js";
 import type * as lib_mailer from "../lib/mailer.js";
 import type * as lib_plays from "../lib/plays.js";
 import type * as lib_rules from "../lib/rules.js";
+import type * as lib_teacherMemory from "../lib/teacherMemory.js";
 import type * as liveRoomCleanup from "../liveRoomCleanup.js";
 import type * as liveRooms from "../liveRooms.js";
 import type * as mail from "../mail.js";
@@ -41,6 +42,7 @@ import type * as passwordReset from "../passwordReset.js";
 import type * as robot from "../robot.js";
 import type * as student from "../student.js";
 import type * as teacherHome from "../teacherHome.js";
+import type * as teacherMemory from "../teacherMemory.js";
 import type * as users from "../users.js";
 
 import type {
@@ -76,6 +78,7 @@ declare const fullApi: ApiFromModules<{
   "lib/mailer": typeof lib_mailer;
   "lib/plays": typeof lib_plays;
   "lib/rules": typeof lib_rules;
+  "lib/teacherMemory": typeof lib_teacherMemory;
   liveRoomCleanup: typeof liveRoomCleanup;
   liveRooms: typeof liveRooms;
   mail: typeof mail;
@@ -83,6 +86,7 @@ declare const fullApi: ApiFromModules<{
   robot: typeof robot;
   student: typeof student;
   teacherHome: typeof teacherHome;
+  teacherMemory: typeof teacherMemory;
   users: typeof users;
 }>;
 

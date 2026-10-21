@@ -18,6 +18,8 @@ export type GenerationRequest = {
     readonly minObstacles?: number;
     readonly maxEnergy?: number;
   };
+  /** Nota que el docente guardó sobre sus clases. Es un dato suyo, no una instrucción. */
+  readonly teacherPreferences?: readonly string[];
 };
 export type GenerationErrorCode =
   | "SCHEMA_INVALID"

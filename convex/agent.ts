@@ -6,7 +6,8 @@
  *
  * Variables del despliegue: GEMINI_API_KEY o ANTHROPIC_API_KEY (sin ninguna el
  * asistente queda «no activado»), y opcionales AGENT_PROVIDER, GEMINI_MODEL y
- * ANTHROPIC_MODEL (ver generation/providers/select.ts).
+ * ANTHROPIC_MODEL (ver generation/providers/select.ts). Si Atomic Memory está
+ * configurado (ver lib/teacherMemory.ts), se usa la nota de preferencias del docente.
  */
 import { ConvexError, v } from "convex/values";
 import { ContractError } from "../domain/mission/validation";
@@ -22,6 +23,7 @@ import { internal } from "./_generated/api";
 import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { requireTeacher } from "./lib/access";
 import { deploymentEnv } from "./lib/env";
+import { memoryConfig, MemoryUnavailable, readPreference, RECALL_TIMEOUT_MS } from "./lib/teacherMemory";
 
 /** Cada petición puede costar hasta 9 llamadas al modelo (3 grados × 3 intentos): se acota por docente. */
 export const AGENT_MAX_PER_HOUR = 5;
@@ -80,10 +82,26 @@ function alternativeCostOf(mission: Mission): number | null {
     return null;
   }
 }
+/** Si se usó la nota del docente: «off» sin Atomic Memory, «unavailable» si no respondió a tiempo. */
+export type PreferenceUse = "used" | "none" | "off" | "unavailable";
+
+async function recallPreference(teacherId: string): Promise<{ use: PreferenceUse; text?: string }> {
+  const config = memoryConfig(deploymentEnv());
+  if (!config) return { use: "off" };
+  try {
+    const preference = await readPreference(config, teacherId, RECALL_TIMEOUT_MS);
+    return preference ? { use: "used", text: preference.text } : { use: "none" };
+  } catch (error) {
+    if (error instanceof MemoryUnavailable) return { use: "unavailable" };
+    throw error;
+  }
+}
+
 export type GenerateResult =
   | { readonly status: "not_configured" }
   | {
       readonly status: "ok";
+      readonly preference: PreferenceUse;
       readonly proposals: readonly Proposal[];
       /** Grados que no lograron una misión verificada; el código dice por qué (no hay texto del proveedor). */
       readonly failed: readonly { readonly grade: 2 | 3 | 4; readonly code: GenerationErrorCode }[];
@@ -108,11 +126,14 @@ export const generate = action({
       throw error;
     }
     await ctx.runMutation(internal.agent.reserve, { teacherId });
-    const results = await generateActivity(request, provider);
+    // La nota es opcional: si Atomic Memory falla o tarda, se genera sin ella y se avisa.
+    const memory = await recallPreference(teacherId);
+    const results = await generateActivity(request, provider, memory.text ? { teacherPreferences: [memory.text] } : {});
     // Solo metadatos (nunca el objetivo ni la propuesta): sirven para ver costo y fallos en los logs.
     console.log(JSON.stringify({ agent: "generate", events: results.flatMap((r) => r.events) }));
     return {
       status: "ok",
+      preference: memory.use,
       // Una plantilla de respaldo no es una propuesta del asistente: no se ofrece.
       proposals: results.filter((r) => r.origin === "ai_generated").map((r) => ({ grade: r.mission.grade, mission: r.mission, metrics: r.metrics, alternativeCost: alternativeCostOf(r.mission) })),
       failed: results

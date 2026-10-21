@@ -109,7 +109,7 @@ async function timedProposal(
 export async function generateActivity(
   input: unknown,
   provider: MissionProvider,
-  options: { timeoutMs?: number; totalMs?: number; signal?: AbortSignal } = {},
+  options: { timeoutMs?: number; totalMs?: number; signal?: AbortSignal; teacherPreferences?: readonly string[] } = {},
 ): Promise<GeneratedProposal[]> {
   const request = parseActivityRequest(input);
   const promptVersion = request.family ? MECHANICS_PROMPT_VERSION : LEGACY_PROMPT_VERSION;
@@ -147,6 +147,7 @@ export async function generateActivity(
               grade,
               difficulty: request.difficulty,
               constraints: request.constraints,
+              ...(options.teacherPreferences?.length ? { teacherPreferences: options.teacherPreferences } : {}),
             },
             previousIssues,
             previousProposal,

@@ -82,3 +82,31 @@ la prueba no repite llamadas: bórralo para un nuevo lote. Un respaldo por plant
 Solo se envía el texto del aprendizaje, la dificultad y el grado. Se rechazan
 correos, teléfonos y «DNI/pasaporte» en el objetivo (bloqueo básico, no un
 detector completo). No se envían datos del aula ni de alumnos.
+
+## Preferencias del docente (Atomic Memory, opcional)
+
+El docente puede guardar una nota corta sobre sus clases («historias de animales,
+tableros pequeños») en Asistente de misiones. Al generar en la nube, `agent:generate`
+la lee y la pasa al prompt como `teacherPreferences`: un dato del docente que se
+aplica al estilo solo si no contradice el objetivo, el grado ni el contrato. La
+misión se sigue verificando igual en el servidor.
+
+```bash
+npx convex env set ATOMICMEMORY_API_KEY amc_...   # proyecto Cloud; sin clave, apagado
+npx convex env set ATOMICMEMORY_API_URL https://api.atomicstrata.ai   # opcional
+```
+
+- **Sujeto**: `robolab-docente:<id del usuario>`, sacado de la sesión en el servidor
+  (`convex/teacherMemory.ts`). El navegador nunca envía el sujeto ni ve la clave.
+- **Guardar**: `POST /v1/memories/ingest/quick` con `skip_extraction`,
+  `content_class: "summary"` y un `externalId` fijo. Solo se responde «guardada» si
+  el recibo trae un id (o la omite por repetida) y ese registro se lee de vuelta con
+  `GET /v1/memories/list`. Las versiones anteriores se borran.
+- **Olvidar**: `DELETE /v1/memories/:id` debe responder `{ success: true }` (404 ya
+  está borrada) y después la lista debe quedar vacía.
+- **Fallas**: un 2xx malformado, un error, una redirección (`redirect: "error"`) o
+  más de 2,5 s al generar cuentan como «no disponible». El asistente genera sin la
+  nota y la web lo dice; la nota nunca se da por guardada u olvidada sin confirmar.
+- **Privacidad**: 10 a 300 letras, sin correos, teléfonos ni documentos
+  (`domain/teacher/preferences.ts`). Es una nota del docente, nunca datos de alumnos.
+  La generación en la Jetson no la usa.

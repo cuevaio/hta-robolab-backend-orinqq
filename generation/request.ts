@@ -1,6 +1,7 @@
 import type { Mission } from "../domain/mission/contracts";
 import { ContractError, MISSION_LIMITS } from "../domain/mission/validation";
 import { isMissionFamily } from "../domain/mission/mechanics";
+import { hasPersonalIdentifiers } from "../domain/teacher/preferences";
 import type { GenerationRequest } from "./contracts";
 export type ActivityRequest = Omit<GenerationRequest, "grade"> & {
   readonly grades: readonly Mission["grade"][];
@@ -21,7 +22,7 @@ export function parseActivityRequest(input: unknown): ActivityRequest {
     invalid("objective", "El objetivo debe tener entre 10 y 800 caracteres.");
   const objective = r.objective.trim();
   // No se adjuntan datos del aula. Bloqueo básico de identificadores evidentes, no un detector completo de PII.
-  if (/\S+@\S+\.\S+|\d[\d\s-]{6,}\d|\b(?:DNI|pasaporte)\b/i.test(objective))
+  if (hasPersonalIdentifiers(objective))
     invalid(
       "objective",
       "Describe solo el aprendizaje, sin correos, teléfonos ni documentos personales.",

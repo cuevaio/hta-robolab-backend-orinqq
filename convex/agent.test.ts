@@ -144,7 +144,7 @@ describe("asistente: proponer misiones", () => {
     fetchMock.mockResolvedValue(new Response("cuerpo-secreto", { status: 429 }));
     const { teacher } = await withTeacher();
     const result = await teacher.action(api.agent.generate, { objective: OBJETIVO, grades: [2] });
-    expect(result).toEqual({ status: "ok", proposals: [], failed: [{ grade: 2, code: "PROVIDER_RATE_LIMIT" }] });
+    expect(result).toEqual({ status: "ok", preference: "off", proposals: [], failed: [{ grade: 2, code: "PROVIDER_RATE_LIMIT" }] });
     expect(JSON.stringify(result)).not.toContain("secreto");
   });
 
